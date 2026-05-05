@@ -44,6 +44,7 @@ export function timeout(
         splitPath: splitRoutePath(path),
         method: parseHttpMethods(method),
         handler: timeoutMiddleware,
+        middlewareName: "timeout",
     })
 
     return routes

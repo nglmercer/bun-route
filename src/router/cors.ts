@@ -98,6 +98,7 @@ export function cors(
         splitPath: splitRoutePath(path),
         method: parseHttpMethods(method),
         handler: corsMiddleware,
+        middlewareName: "cors",
     })
 
     return routes

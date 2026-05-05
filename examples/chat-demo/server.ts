@@ -62,28 +62,32 @@ router.group("/api", (_router) => {
     registerUploadRoutes(_router)
     registerChatRoutes(_router)
 
-    // Demo info route — uses req.query() for filtering
-    _router.get("/info", (req: Request, res: ResponseBuilder) => {
-        const info: ApiInfo = {
-            maxFileSize: "50 MB",
-            uploadDir: "./uploads",
-            ///_router.getRoutes(), current router in group, whe user router is global router
-            endpoints: _router.getRoutes(),
-            globalEndpoints: router.getRoutes(),
-            websocket: "WS /chat"
-        }
+// Demo info route — uses req.query() for filtering
+router.get("/api/info", (req: Request, res: ResponseBuilder) => {
+    // getRoutes() now excludes middleware routes by default
+    const endpoints = router.getRoutes()
 
-        // Support filtering endpoints by method via query param
-        const methodFilter = req.query("method") as string;
-        if (methodFilter) {
-            const filtered = info.endpoints.filter(
-                (e) => e.method.toUpperCase() === methodFilter.toUpperCase()
-            );
-            return sendJson(res, { ...info, endpoints: filtered })
-        }
+    const info: ApiInfo = {
+        maxFileSize: "50 MB",
+        uploadDir: "./uploads",
+        endpoints,
+        websocket: "WS /chat"
+    }
 
-        return sendJson(res, info)
-    })
+    // Support filtering endpoints by method via query param
+    const methodFilter = req.query("method") as string;
+    if (methodFilter) {
+        const filtered = endpoints.filter(
+            (e) => e.method.toUpperCase() === methodFilter.toUpperCase()
+        );
+        res.setHeader("Content-Type", "application/json")
+        res.send(JSON.stringify({ ...info, endpoints: filtered }))
+        return;
+    }
+
+    res.setHeader("Content-Type", "application/json")
+    res.send(JSON.stringify(info))
+})
 })
 
 // Start server with WebSocket support

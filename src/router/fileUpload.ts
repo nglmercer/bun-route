@@ -118,6 +118,7 @@ export function fileUpload(
         splitPath: splitRoutePath(path),
         method: parseHttpMethods(method),
         handler: fileUploadMiddleware,
+        middlewareName: "fileUpload",
     })
 
     return routes

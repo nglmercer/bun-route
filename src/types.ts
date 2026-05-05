@@ -107,6 +107,7 @@ export interface EndpointRoute {
     handler: RequestMiddleware,
     method: HttpMethod,
     splitPath: SplitPath,
+    middlewareName?: string,
 }
 
 export interface CookieOptions {

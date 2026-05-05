@@ -1,9 +1,10 @@
 import { type Server } from "bun"
-import type { Awaitable, BunRequestHandler, EndpointRoute, RequestMiddleware, WebSocketData, Request } from "./types"
+import type { Awaitable, BunRequestHandler, EndpointRoute, RequestMiddleware, WebSocketData, Request, MergedRequestMiddleware } from "./types"
 import { HttpMethodString, stringifyHttpMethods } from "./method"
 import { RESPONSE_DEFAULTS, ResponseBuilder, HTTP_STATUS } from "./responseBuilder"
 import { splitRoutePath } from "./path"
 import { innerHandle } from "./router/handler"
+import { isMergedRequestMiddleware } from "./middleware"
 // Import modularized components
 import { parseCookies, storeCookies } from "./router/cookies"
 import { dump as dumpRoutes } from "./router/dump"
@@ -81,13 +82,55 @@ export class Router {
     /**
      * Returns all registered routes as a structured object.
      * Useful for API documentation or creating dynamic endpoint listings.
+     * @param includeMiddleware Whether to include middleware routes (default: false)
      * @returns An array of route objects with method and path
      */
-    getRoutes(): Array<{ method: string; path: string }> {
-        return this.routes.map((route) => ({
-            method: stringifyHttpMethods(route.method),
-            path: route.splitPath ? "/" + route.splitPath.join("/") : "/",
-        }))
+    getRoutes(includeMiddleware: boolean = false): Array<{ method: string; path: string }> {
+        const seen = new Set<string>()
+        const result: Array<{ method: string; path: string }> = []
+
+        for (const route of this.routes) {
+            const method = stringifyHttpMethods(route.method)
+            const path = route.splitPath ? "/" + route.splitPath.join("/") : "/"
+            const key = `${method}:${path}`
+
+            // Skip duplicates
+            if (seen.has(key)) {
+                continue
+            }
+            seen.add(key)
+
+            // Skip middleware routes unless requested
+            if (!includeMiddleware && this.isMiddlewareRoute(route)) {
+                continue
+            }
+
+            result.push({ method, path })
+        }
+
+        return result
+    }
+
+    private isMiddlewareRoute(route: EndpointRoute): boolean {
+        // Check if route has middlewareName set
+        if (route.middlewareName) {
+            return true
+        }
+
+        // Check if it's a merged middleware containing middleware
+        if (isMergedRequestMiddleware(route.handler)) {
+            const base = (route.handler as MergedRequestMiddleware).base
+            for (const m of base) {
+                // Check if any base handler has a middlewareName in its route
+                // We can't directly access route from here, so check handler name patterns
+                const name = m.name || ""
+                if (name.endsWith("Middleware") || name.endsWith("middleware")) {
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 
     /**

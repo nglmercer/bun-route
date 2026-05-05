@@ -38,6 +38,7 @@ export function requestId(
         splitPath: splitRoutePath(path),
         method: parseHttpMethods(method),
         handler: requestIdMiddleware,
+        middlewareName: "requestId",
     })
 
     return routes

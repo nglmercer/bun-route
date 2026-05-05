@@ -95,6 +95,7 @@ export function rateLimit(
         splitPath: splitRoutePath(path),
         method: parseHttpMethods(method),
         handler: rateLimitMiddleware,
+        middlewareName: "rateLimit",
     })
 
     return routes

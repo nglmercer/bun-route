@@ -32,7 +32,7 @@ export interface OnlineUser {
 export interface ApiInfo {
     maxFileSize: string
     uploadDir: string
-    endpoints: Array<{ method: string; path: string }>
-    globalEndpoints: Array<{ method: string; path: string }>
+    endpoints?: Array<{ method: string; path: string }>
+    globalEndpoints?: Array<{ method: string; path: string }>
     websocket: string
 }

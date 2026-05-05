@@ -72,6 +72,7 @@ export function bodyParser(
         splitPath: splitRoutePath(path),
         method: parseHttpMethods(method),
         handler: bodyParserMiddleware,
+        middlewareName: "bodyParser",
     })
 
     return routes
