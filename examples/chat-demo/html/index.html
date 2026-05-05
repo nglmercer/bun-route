@@ -284,7 +284,8 @@
                 headers: { 'Authorization': 'Bearer ' + authToken }
             });
             if (res.ok) {
-                const files = await res.json();
+                const data = await res.json();
+                const files = data.files || data; // Handle both paginated and legacy response
                 const list = document.getElementById('files-list');
                 if (files.length === 0) {
                     list.innerHTML = '<p>No files uploaded yet.</p>';
