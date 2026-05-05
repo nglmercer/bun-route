@@ -2,20 +2,19 @@ import { Router } from "src/index"
 import type { Request } from "src/types"
 import type { ResponseBuilder } from "src/index"
 import { registerAuthRoutes } from "./lib/auth"
-import { registerUploadRoutes } from "./lib/upload"
+import { registerUploadRoutes, registerFileRoutes } from "./lib/upload"
 import { registerChatRoutes, getWebSocketHandlers } from "./lib/chat"
 import type { ApiInfo } from "./lib/interfaces"
-
+import { sendJson } from "./lib/utils"
 const router = new Router()
 
 // Error handler — catches all unhandled errors
 router.onError((err, req, res) => {
     console.error(`[ERROR] ${req.httpMethod} ${req.path}:`, err.message)
-    const stringError = JSON.stringify({
+    return sendJson(res, {
         error: "Internal server error",
         message: err.message,
-    })
-    res.status(500).send(stringError)
+    }, 500)
 })
 
 // Request ID middleware — adds X-Request-Id header
@@ -49,7 +48,7 @@ router.group("/api", (api) => {
     registerUploadRoutes(api)
     registerChatRoutes(api)
 })
-
+registerFileRoutes(router);
 // Register WebSocket path and handlers
 router.ws("/chat")
 router.setWebSocketHandlers(getWebSocketHandlers())
@@ -78,13 +77,10 @@ router.get("/api/info", (req: Request, res: ResponseBuilder) => {
         const filtered = info.endpoints.filter(
             (e) => e.method.toUpperCase() === methodFilter.toUpperCase()
         );
-        res.setHeader("Content-Type", "application/json")
-        res.send(JSON.stringify({ ...info, endpoints: filtered }))
-        return;
+        return sendJson(res, { ...info, endpoints: filtered })
     }
 
-    res.setHeader("Content-Type", "application/json")
-    res.send(JSON.stringify(info))
+    return sendJson(res, info)
 })
 
 // Start server with WebSocket support

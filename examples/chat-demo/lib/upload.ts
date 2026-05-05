@@ -11,13 +11,13 @@ import { requireAuth, sendJson, getFileInfo, formatFileSize } from "./utils";
 export function registerUploadRoutes(router: Router): void {
   // Register file upload middleware for the upload endpoint
   // This automatically parses multipart/form-data and validates file size
-  router.fileUpload("POST", "/api/upload", {
+  router.fileUpload("POST", "/upload", {
     maxSize: MAX_FILE_SIZE,
     allowedTypes: ["image/", "video/", "application/pdf", "text/"],
   });
 
   // Upload route — uses fileUpload middleware + named params
-  router.post("/api/upload", async (req: Request, res: ResponseBuilder) => {
+  router.post("/upload", async (req: Request, res: ResponseBuilder) => {
     if (!requireAuth(req, res)) return;
 
     // Get uploaded file using the new static helper
@@ -57,13 +57,13 @@ export function registerUploadRoutes(router: Router): void {
         .status(500)
         .send(
           "Upload failed: " +
-            (err instanceof Error ? err.message : String(err)),
+          (err instanceof Error ? err.message : String(err)),
         );
     }
   });
 
   // List uploaded files — uses req.query() for pagination
-  router.get("/api/files", (req: Request, res: ResponseBuilder) => {
+  router.get("/files", (req: Request, res: ResponseBuilder) => {
     if (!requireAuth(req, res)) return;
 
     try {
@@ -90,7 +90,7 @@ export function registerUploadRoutes(router: Router): void {
   });
 
   // Delete file — uses named params instead of wildcards
-  router.delete("/api/files/:filename", (req: Request, res: ResponseBuilder) => {
+  router.delete("/files/:filename", (req: Request, res: ResponseBuilder) => {
     if (!requireAuth(req, res)) return;
 
     const params = req.pathParams as Record<string, string>;
@@ -109,8 +109,9 @@ export function registerUploadRoutes(router: Router): void {
       res.status(500).send("Failed to delete file");
     }
   });
-
-  // Serve uploaded files — uses named params
+}
+// Serve uploaded files — uses named params
+export function registerFileRoutes(router: Router): void {
   router.get("/uploads/:filename", (req: Request, res: ResponseBuilder) => {
     if (!requireAuth(req, res)) return;
 

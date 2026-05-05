@@ -14,7 +14,7 @@ import {
 
 // Chat API routes
 export function registerChatRoutes(router: Router): void {
-  router.get("/api/chat/messages", (req: Request, res: ResponseBuilder) => {
+  router.get("/chat/messages", (req: Request, res: ResponseBuilder) => {
     const username = requireAuth(req, res);
     if (!username) return;
 
@@ -35,7 +35,7 @@ export function registerChatRoutes(router: Router): void {
     sendJson(res, messages);
   });
 
-  router.get("/api/chat/online", (req: Request, res: ResponseBuilder) => {
+  router.get("/chat/online", (req: Request, res: ResponseBuilder) => {
     const username = requireAuth(req, res);
     if (!username) return;
 
