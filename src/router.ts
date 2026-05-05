@@ -1,6 +1,6 @@
 import { type Server } from "bun"
-import type { BunRequestHandler, EndpointRoute, RequestMiddleware, WebSocketData } from "./types"
-import { HttpMethodString } from "./method"
+import type { BunRequestHandler, EndpointRoute, RequestMiddleware, WebSocketData, Request } from "./types"
+import { HttpMethodString, stringifyHttpMethods } from "./method"
 import { RESPONSE_DEFAULTS } from "./responseBuilder"
 
 // Import modularized components
@@ -59,13 +59,25 @@ export class Router {
 
     /**
      * Prints a table of all endpoints defined in this router.
-     * 
+     *
      * If a server is given as a parameter, a running message with the url of the server is printed too.
      * @param server The server to print the url of
      * @returns A string representing the table of endpoints
      */
     dump(...servers: Server<WebSocketData>[]): string {
         return dumpRoutes(this.routes, ...servers)
+    }
+
+    /**
+     * Returns all registered routes as a structured object.
+     * Useful for API documentation or creating dynamic endpoint listings.
+     * @returns An array of route objects with method and path
+     */
+    getRoutes(): Array<{ method: string; path: string }> {
+        return this.routes.map((route) => ({
+            method: stringifyHttpMethods(route.method),
+            path: route.splitPath ? "/" + route.splitPath.join("/") : "/",
+        }))
     }
 
     /**
@@ -86,7 +98,7 @@ export class Router {
      */
     request(request: Request | string, options?: RequestInit): Promise<Response> {
         const req = typeof request === "string" ? new Request(request, options) : request;
-        const res = this.handle(req as any, {
+        const res = this.handle(req as Request, {
             requestIP: () => ({ address: "127.0.0.1", family: "IPv4", port: 0 })
         } as unknown as Server<WebSocketData>);
         return Promise.resolve(res as Response);

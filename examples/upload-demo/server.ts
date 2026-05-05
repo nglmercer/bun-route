@@ -8,6 +8,20 @@ import type { ApiInfo } from "./lib/interfaces"
 
 const router = new Router()
 
+// Logging middleware
+router.use("*", "/**", (req: Request, res: ResponseBuilder) => {
+    const timestamp = new Date().toISOString()
+    const method = req.httpMethod
+    const url = new URL(req.url).pathname
+    console.log(`[${timestamp}] --> ${method} ${url}`)
+
+    // Log response using beforeSent hook
+    res.beforeSent((res) => {
+        const timestamp = new Date().toISOString()
+        console.log(`[${timestamp}] <-- ${res.statusCode} ${method} ${url}`)
+    })
+})
+
 // Register all routes
 registerAuthRoutes(router)
 registerUploadRoutes(router)
@@ -27,17 +41,7 @@ router.get("/api/info", (_: Request, res: ResponseBuilder) => {
     const info: ApiInfo = {
         maxFileSize: "50 MB",
         uploadDir: "./uploads",
-        endpoints: {
-            login: "POST /api/login",
-            me: "GET /api/me",
-            logout: "POST /api/logout",
-            upload: "POST /api/upload",
-            files: "GET /api/files",
-            deleteFile: "DELETE /api/files/*",
-            serveFile: "GET /uploads/*",
-            chatMessages: "GET /api/chat/messages",
-            chatOnline: "GET /api/chat/online"
-        },
+        endpoints: router.getRoutes(),
         websocket: "WS /chat"
     }
     res.setHeader("Content-Type", "application/json")
@@ -46,7 +50,7 @@ router.get("/api/info", (_: Request, res: ResponseBuilder) => {
 
 // Start server with WebSocket support
 export const server = Bun.serve({
-    fetch(req: Request, server: any) {
+    fetch(req: Request, server) {
         const url = new URL(req.url || "", `http://${req.headers.get("host") || "localhost"}`)
 
         // Handle WebSocket upgrade for /chat path

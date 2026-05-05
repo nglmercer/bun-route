@@ -64,7 +64,7 @@ export function storeCookies(
     const newCookies = req.cookies
     const oldCookies: {
         [key: string]: string
-    } = req.originCookies as any ?? {}
+    } = req.originCookies as Record<string, string> ?? {}
 
     const newCookieKeys = Object.keys(newCookies)
     for (const cookieKey of newCookieKeys) {

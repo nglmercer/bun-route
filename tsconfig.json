@@ -12,22 +12,11 @@
     "noEmit": true,
     "outDir": "dist",
     "resolveJsonModule": true,
-    "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "src/*": [
-        "./src/*"
-      ]
-    }
+      "@/*": ["./*"],
+      "src/*": ["./src/*"],
+    },
   },
-  "include": [
-    "src/**/*.ts",
-    "examples/**/*.ts"
-  ],
-  "exclude": [
-    "dist",
-    "node_modules"
-  ]
+  "include": ["src/**/*.ts", "examples/**/*.ts"],
+  "exclude": ["dist", "node_modules"],
 }

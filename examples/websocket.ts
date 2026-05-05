@@ -13,13 +13,13 @@ router.ws("/ws")
 export const server = Bun.serve({
     fetch: router.handle,
     websocket: {
-        open: (ws) => {
+        open: (ws: Bun.ServerWebSocket<undefined>) => {
             console.log(ws.remoteAddress + " - incomming websocket connection")
         },
-        message: (ws, msg) => {
+        message: (ws: Bun.ServerWebSocket<undefined>, msg: string | Buffer) => {
             console.log(ws.remoteAddress + " - message: " + msg)
         },
-        close: (ws) => {
+        close: (ws: Bun.ServerWebSocket<undefined>) => {
             console.log(ws.remoteAddress + " - websocket connection closed")
         }
     }

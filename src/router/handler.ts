@@ -26,8 +26,7 @@ export function innerHandle(
     req.cookies = {}
     req.path = new URL(req.url).pathname
     req.splitPath = splitPath(req.path)
-    // @ts-nocheck
-    const sock = req.server.requestIP(req as any) //TODO: fix bun/node type errors
+    const sock = req.server.requestIP(req)
     if (!sock) {
         return new Response("Request closed to early", { status: HTTP_STATUS.INTERNAL_SERVER_ERROR })
     }

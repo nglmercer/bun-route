@@ -1,6 +1,7 @@
 import { Router } from "src/index";
 import type { Request } from "src/types";
 import type { ResponseBuilder } from "src/index";
+import type { WebSocketData } from "src/types";
 import type { ChatMessage } from "./interfaces";
 import { sessions, chatMessages, onlineUsers, userSockets } from "./state";
 import {
@@ -45,12 +46,13 @@ export function registerChatRoutes(router: Router): void {
 // WebSocket handlers for Bun.serve
 export function getWebSocketHandlers() {
   return {
-    open(ws: any) {
+    open(_ws: Bun.ServerWebSocket<WebSocketData>) {
       // WebSocket connection opened - wait for auth
     },
-    async message(ws: any, message: any) {
+    async message(ws: Bun.ServerWebSocket<WebSocketData>, message: string | Buffer) {
       try {
-        const data = JSON.parse(message as string);
+        const messageStr = typeof message === "string" ? message : message.toString();
+        const data = JSON.parse(messageStr);
 
         if (data.type === "auth") {
           // Authenticate WebSocket connection
@@ -190,7 +192,7 @@ export function getWebSocketHandlers() {
         );
       }
     },
-    close(ws: any) {
+    close(ws: Bun.ServerWebSocket<WebSocketData>) {
       const user = onlineUsers.get(ws);
       if (user) {
         onlineUsers.delete(ws);
