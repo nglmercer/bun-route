@@ -16,6 +16,11 @@ type MockRequest = Request & {
     pathParams?: string[] | Record<string, string>;
     id?: string;
     parsedBody?: unknown;
+    queryParams: Record<string, string>;
+    query: (key?: string) => string | string[] | undefined;
+    queries: (key: string) => string[];
+    ip: string;
+    ips: string[];
 };
 
 /**
@@ -31,8 +36,7 @@ export const createMockReq = (
             ? headers
             : new Headers((headers as any) || {});
 
-    //@ts-expect-error
-    const baseRequest: MockRequest = {
+    const baseRequest = {
         headers: mockHeaders,
         method: "GET",
         url: "http://localhost/",
@@ -42,9 +46,14 @@ export const createMockReq = (
         server: undefined,
         sock: undefined,
         cookies: {},
-        originCookies: undefined as any,  // ← was [], change to undefined
+        originCookies: undefined as any,
+        queryParams: {},
+        query: (() => ({})) as any,
+        queries: (() => []) as any,
+        ip: "127.0.0.1",
+        ips: ["127.0.0.1"],
         ...rest,
-    };
+    } as MockRequest;
     // read-only built-ins we can't spread literally
 
     return baseRequest;

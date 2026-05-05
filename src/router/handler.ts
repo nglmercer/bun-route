@@ -24,8 +24,43 @@ export function innerHandle(
     req.httpMethod = parseHttpMethods(req.method)
     req.server = server
     req.cookies = {}
-    req.path = new URL(req.url).pathname
+    const url = new URL(req.url)
+    req.path = url.pathname
     req.splitPath = splitPath(req.path)
+
+    // Parse query parameters
+    const searchParams = url.searchParams
+    const queryParams: Record<string, string> = {}
+    for (const [key, value] of searchParams) {
+        queryParams[key] = value
+    }
+    req.queryParams = queryParams
+    req.query = (key?: string) => {
+        if (key === undefined) {
+            return { ...queryParams }
+        }
+        // Check for repeated keys (array values)
+        const values = searchParams.getAll(key)
+        if (values.length > 1) {
+            return values
+        }
+        return searchParams.get(key) ?? undefined
+    }
+    req.queries = (key: string) => {
+        return searchParams.getAll(key)
+    }
+
+    // Parse IP addresses
+    const forwardedFor = req.headers.get("x-forwarded-for")
+    if (forwardedFor) {
+        req.ips = forwardedFor.split(",").map(ip => ip.trim())
+        req.ip = req.ips[0]
+    } else {
+        const sockIP = req.server.requestIP(req)
+        req.ip = sockIP?.address || "127.0.0.1"
+        req.ips = [req.ip]
+    }
+
     const sock = req.server.requestIP(req)
     if (!sock) {
         return new Response("Request closed to early", { status: HTTP_STATUS.INTERNAL_SERVER_ERROR })

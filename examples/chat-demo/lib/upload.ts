@@ -9,13 +9,26 @@ import { requireAuth, sendJson, getFileInfo, formatFileSize } from "./utils";
 
 // Upload routes
 export function registerUploadRoutes(router: Router): void {
-  // Upload route with size limit
+  // Register file upload middleware for the upload endpoint
+  // This automatically parses multipart/form-data and validates file size
+  router.fileUpload("POST", "/api/upload", {
+    maxSize: MAX_FILE_SIZE,
+    allowedTypes: ["image/", "video/", "application/pdf", "text/"],
+  });
+
+  // Upload route — uses fileUpload middleware + named params
   router.post("/api/upload", async (req: Request, res: ResponseBuilder) => {
     if (!requireAuth(req, res)) return;
 
-    // Check content length
-    const contentLength = parseInt(req.headers.get("content-length") || "0");
-    if (contentLength > MAX_FILE_SIZE) {
+    // Get uploaded file using the new static helper
+    const file = Router.getFile(req, "file");
+
+    if (!file) {
+      res.status(400).send("No file provided");
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
       res
         .status(413)
         .send(`File too large. Max size: ${formatFileSize(MAX_FILE_SIZE)}`);
@@ -23,21 +36,6 @@ export function registerUploadRoutes(router: Router): void {
     }
 
     try {
-      const formData = await req.formData();
-      const file = formData.get("file") as File | null;
-
-      if (!file) {
-        res.status(400).send("No file provided");
-        return;
-      }
-
-      if (file.size > MAX_FILE_SIZE) {
-        res
-          .status(413)
-          .send(`File too large. Max size: ${formatFileSize(MAX_FILE_SIZE)}`);
-        return;
-      }
-
       // Sanitize filename
       const filename = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
       const filepath = join(UPLOAD_DIR, filename);
@@ -46,9 +44,13 @@ export function registerUploadRoutes(router: Router): void {
       const arrayBuffer = await file.arrayBuffer();
       await Bun.write(filepath, arrayBuffer);
 
+      // Get form fields if any
+      const fields = Router.getFormFields(req);
+
       sendJson(res, {
         message: "File uploaded successfully",
         file: getFileInfo(filename),
+        fields: Object.keys(fields).length > 0 ? fields : undefined,
       });
     } catch (err: unknown) {
       res
@@ -60,7 +62,7 @@ export function registerUploadRoutes(router: Router): void {
     }
   });
 
-  // List uploaded files
+  // List uploaded files — uses req.query() for pagination
   router.get("/api/files", (req: Request, res: ResponseBuilder) => {
     if (!requireAuth(req, res)) return;
 
@@ -70,17 +72,29 @@ export function registerUploadRoutes(router: Router): void {
         .filter((f): f is FileInfo => f !== null)
         .sort((a, b) => b.uploadedAt - a.uploadedAt);
 
-      sendJson(res, files);
+      // Support pagination via query params
+      const page = parseInt(req.query("page") as string) || 1;
+      const limit = parseInt(req.query("limit") as string) || 50;
+      const offset = (page - 1) * limit;
+      const paginatedFiles = files.slice(offset, offset + limit);
+
+      sendJson(res, {
+        files: paginatedFiles,
+        total: files.length,
+        page,
+        limit,
+      });
     } catch {
-      sendJson(res, []);
+      sendJson(res, { files: [], total: 0, page: 1, limit: 50 });
     }
   });
 
-  // Delete file
-  router.delete("/api/files/*", (req: Request, res: ResponseBuilder) => {
+  // Delete file — uses named params instead of wildcards
+  router.delete("/api/files/:filename", (req: Request, res: ResponseBuilder) => {
     if (!requireAuth(req, res)) return;
 
-    const filename = (req.pathParams as string[])?.[0] || "";
+    const params = req.pathParams as Record<string, string>;
+    const filename = params?.filename || "";
     const filepath = join(UPLOAD_DIR, filename);
 
     if (!existsSync(filepath)) {
@@ -96,11 +110,12 @@ export function registerUploadRoutes(router: Router): void {
     }
   });
 
-  // Serve uploaded files (protected)
-  router.get("/uploads/*", (req: Request, res: ResponseBuilder) => {
+  // Serve uploaded files — uses named params
+  router.get("/uploads/:filename", (req: Request, res: ResponseBuilder) => {
     if (!requireAuth(req, res)) return;
 
-    const filename = req.path.replace("/uploads/", "");
+    const params = req.pathParams as Record<string, string>;
+    const filename = params?.filename || "";
     const filepath = join(UPLOAD_DIR, filename);
 
     if (!existsSync(filepath)) {

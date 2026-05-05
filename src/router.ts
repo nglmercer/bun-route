@@ -31,6 +31,7 @@ import { bodyParser as registerBodyParser, type BodyParserOptions } from "./rout
 import { rateLimit as registerRateLimit, type RateLimitOptions } from "./router/rateLimit"
 import { requestId as registerRequestId, type RequestIdOptions } from "./router/requestId"
 import { timeout as registerTimeout, type TimeoutOptions } from "./router/timeout"
+import { fileUpload as registerFileUpload, type FileUploadOptions, getFile, getFiles, getFileFieldNames, getFormFields } from "./router/fileUpload"
 
 export type ErrorHandler = (err: Error, req: Request, res: ResponseBuilder) => Awaitable<void>
 
@@ -426,6 +427,45 @@ export class Router {
         registerTimeout(this.routes, method, path, options)
         return this
     }
+
+    fileUpload(
+        method: "*" | HttpMethodString,
+        path: string,
+        options?: FileUploadOptions,
+    ): Router {
+        registerFileUpload(this.routes, method, path, options)
+        return this
+    }
+
+    /**
+     * Get a single uploaded file from the request.
+     * @param req The request object
+     * @param fieldName The form field name
+     * @returns The first uploaded file, or undefined
+     */
+    static getFile = getFile
+
+    /**
+     * Get all uploaded files for a field name from the request.
+     * @param req The request object
+     * @param fieldName The form field name
+     * @returns Array of uploaded files, or empty array
+     */
+    static getFiles = getFiles
+
+    /**
+     * Get all uploaded field names from the request.
+     * @param req The request object
+     * @returns Array of field names that have files
+     */
+    static getFileFieldNames = getFileFieldNames
+
+    /**
+     * Get all parsed form fields (non-file) from the request.
+     * @param req The request object
+     * @returns Record of field names to values
+     */
+    static getFormFields = getFormFields
 
     /**
      * Create a route group with a common prefix path.

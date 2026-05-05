@@ -69,7 +69,30 @@ export type Request = BunRequest & {
     /**
      * `req.parsedBody` is the parsed request body set by the bodyParser middleware.
      */
-    parsedBody?: unknown
+    parsedBody?: unknown,
+    /**
+     * `req.queryParams` is the parsed query parameters from the URL.
+     * Always available in a `Router` handled request.
+     */
+    queryParams: Record<string, string>,
+    /**
+     * `req.query(key)` returns a single query parameter value.
+     * `req.query()` returns all query parameters as a Record.
+     */
+    query(key?: string): string | string[] | Record<string, string> | undefined,
+    /**
+     * `req.queries(key)` returns all values for a query parameter (for repeated keys like `?tags=A&tags=B`).
+     */
+    queries(key: string): string[],
+    /**
+     * `req.ip` is the remote IP address of the request.
+     * Always available in a `Router` handled request.
+     */
+    ip: string,
+    /**
+     * `req.ips` is the list of IP addresses from X-Forwarded-For header, or a single-element array.
+     */
+    ips: string[],
 }
 
 export type BunRequestHandler = (request: Request, server: Server<WebSocketData>) => Awaitable<Response>
