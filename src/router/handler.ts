@@ -2,7 +2,8 @@ import type { Server } from "bun"
 import { ResponseBuilder } from "../responseBuilder"
 import { parseHttpMethods } from "../method"
 import { splitPath, requestPathMatchesRouteDefinition } from "../path"
-import type { Awaitable, BunRequestHandler, EndpointRoute, Request } from "../types"
+import type { Awaitable, BunRequestHandler, EndpointRoute, Request, WebSocketData } from "../types"
+import { BunRequest } from "../request"
 import { HttpMethod } from "../method"
 
 /**
@@ -16,7 +17,7 @@ import { HttpMethod } from "../method"
 export function innerHandle(
     routes: EndpointRoute[],
     request: BunRequest,
-    server: Server
+    server: Server<WebSocketData>
 ): Awaitable<Response> {
     const res = new ResponseBuilder()
     const req = request as Request
@@ -216,6 +217,6 @@ export async function routeAsync(
 export function createHandler(
     routes: EndpointRoute[]
 ): BunRequestHandler {
-    return (request: BunRequest, server: Server) =>
+    return (request: BunRequest, server: Server<WebSocketData>) =>
         innerHandle(routes, request, server)
 }

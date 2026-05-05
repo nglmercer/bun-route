@@ -1,5 +1,17 @@
 export type SplitPath = [string, ...string[]] | undefined
 
+export const PATH_CHARS = {
+    SPACE: " ",
+    TAB: "\t",
+    NEWLINE: "\n",
+    SLASH: "/",
+} as const
+
+export const ROUTE_TOKENS = {
+    WILDCARD: "*",
+    DOUBLE_WILDCARD: "**",
+} as const
+
 /**
  * Trims leading and trailing whitespace characters from a string.
  * @param {string} value - The input string to be trimmed.
@@ -7,9 +19,9 @@ export type SplitPath = [string, ...string[]] | undefined
  */
 export function trimSpaces(value: string): string {
     while (
-        value.startsWith(" ") ||
-        value.startsWith("\t") ||
-        value.startsWith("\n")
+        value.startsWith(PATH_CHARS.SPACE) ||
+        value.startsWith(PATH_CHARS.TAB) ||
+        value.startsWith(PATH_CHARS.NEWLINE)
     ) {
         value = value.slice(1)
     }
@@ -19,9 +31,9 @@ export function trimSpaces(value: string): string {
     }
 
     while (
-        value.endsWith(" ") ||
-        value.endsWith("\t") ||
-        value.endsWith("\n")
+        value.endsWith(PATH_CHARS.SPACE) ||
+        value.endsWith(PATH_CHARS.TAB) ||
+        value.endsWith(PATH_CHARS.NEWLINE)
     ) {
         value = value.slice(0, -1)
     }
@@ -41,8 +53,8 @@ export function splitPath(path: string | undefined): SplitPath {
     }
 
     while (
-        path.startsWith("/") ||
-        path.startsWith(" ")
+        path.startsWith(PATH_CHARS.SLASH) ||
+        path.startsWith(PATH_CHARS.SPACE)
     ) {
         path = path.slice(1)
     }
@@ -52,18 +64,18 @@ export function splitPath(path: string | undefined): SplitPath {
     }
 
     while (
-        path.endsWith("/") ||
-        path.endsWith(" ")
+        path.endsWith(PATH_CHARS.SLASH) ||
+        path.endsWith(PATH_CHARS.SPACE)
     ) {
         path = path.slice(0, -1)
     }
 
     const splitPath = path
-        .split("/")
+        .split(PATH_CHARS.SLASH)
         .map((part) => {
             while (
-                part.startsWith("/") ||
-                part.startsWith(" ")
+                part.startsWith(PATH_CHARS.SLASH) ||
+                part.startsWith(PATH_CHARS.SPACE)
             ) {
                 part = part.slice(1)
             }
@@ -73,8 +85,8 @@ export function splitPath(path: string | undefined): SplitPath {
             }
 
             while (
-                part.endsWith("/") ||
-                part.endsWith(" ")
+                part.endsWith(PATH_CHARS.SLASH) ||
+                part.endsWith(PATH_CHARS.SPACE)
             ) {
                 part = part.slice(0, -1)
             }
@@ -95,10 +107,10 @@ export function splitRoutePath(path: string | undefined): SplitPath {
     if (
         splittedPath &&
         splittedPath.length > 1 &&
-        splittedPath.slice(0, -1).includes("**")
+        splittedPath.slice(0, -1).includes(ROUTE_TOKENS.DOUBLE_WILDCARD)
     ) {
         throw new Error(
-            "Invalid router path, ** must be the last part"
+            `Invalid router path, ${ROUTE_TOKENS.DOUBLE_WILDCARD} must be the last part`
         )
     }
 
@@ -129,7 +141,7 @@ export function requestPathMatchesRouteDefinition(
     } else if (
         requestPath == undefined
     ) {
-        if (routeSelector[0] == "**") {
+        if (routeSelector[0] == ROUTE_TOKENS.DOUBLE_WILDCARD) {
             return true
         }
         return false
@@ -141,10 +153,10 @@ export function requestPathMatchesRouteDefinition(
         routeSelector.length == 0
     ) {
         throw new Error("Invalid routeSelector SplitPath length, got 0, expected at least 1")
-    } else if (routeSelector[0] == "**") {
+    } else if (routeSelector[0] == ROUTE_TOKENS.DOUBLE_WILDCARD) {
         return requestPath
     } else if (routeSelector.length < requestPath.length) {
-        if (routeSelector[routeSelector.length - 1] != "**") {
+        if (routeSelector[routeSelector.length - 1] != ROUTE_TOKENS.DOUBLE_WILDCARD) {
             return false
         }
     }
@@ -153,7 +165,7 @@ export function requestPathMatchesRouteDefinition(
 
     for (let i = 0; i < routeSelector.length; i++) {
         switch (routeSelector[i]) {
-            case "*":
+            case ROUTE_TOKENS.WILDCARD:
                 if (requestPath.length <= i) {
                     return false
                 }
@@ -162,7 +174,7 @@ export function requestPathMatchesRouteDefinition(
                 }
                 pathParams.push(requestPath[i])
                 break
-            case "**":
+            case ROUTE_TOKENS.DOUBLE_WILDCARD:
                 if (requestPath.length - i > 0) {
                     if (pathParams === true) {
                         pathParams = []

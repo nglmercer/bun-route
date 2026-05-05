@@ -1,17 +1,36 @@
 import type { BodyInit } from "undici-types"
 import type { Awaitable, CookieOptions } from "./types"
 
+export const HTTP_STATUS = {
+    OK: 200,
+    TEMPORARY_REDIRECT: 307,
+    PERMANENT_REDIRECT: 308,
+    UNAUTHORIZED: 401,
+    NOT_FOUND: 404,
+} as const
+
+export const HTTP_HEADERS = {
+    LOCATION: "location",
+    WWW_AUTHENTICATE: "WWW-Authenticate",
+    SET_COOKIE: "Set-Cookie",
+} as const
+
+export const RESPONSE_DEFAULTS = {
+    REALM: "User Visible Realm",
+    CHARSET: "UTF-8",
+} as const
+
 export const notFoundResponse = new Response(
     "Not Found",
     {
-        status: 404,
+        status: HTTP_STATUS.NOT_FOUND,
         statusText: "Not Found",
     }
 )
 
 export class ResponseBuilder {
     submit: boolean = false
-    statusCode: number = 200
+    statusCode: number = HTTP_STATUS.OK
     statusText?: string
     bodyInit: BodyInit = null
     headers: [string, string][] = []
@@ -94,7 +113,7 @@ export class ResponseBuilder {
      */
     reset(): ResponseBuilder {
         this.submit = false
-        this.statusCode = 200
+        this.statusCode = HTTP_STATUS.OK
         this.statusText = undefined
         this.bodyInit = null
         this.headers = []
@@ -180,7 +199,7 @@ export class ResponseBuilder {
             cookieParts.push(`SameSite=${options.SameSite}`)
         }
 
-        this.setHeader('Set-Cookie', cookieParts.join('; '), false)
+        this.setHeader(HTTP_HEADERS.SET_COOKIE, cookieParts.join('; '), false)
 
         return this
     }
@@ -191,7 +210,7 @@ export class ResponseBuilder {
      * @returns The response builder instance
      */
     unsetCookie(name: string): ResponseBuilder {
-        this.setHeader('Set-Cookie', name + "=; Expires=Thu, 01 Jan 1970 00:00:00 GMT", false)
+        this.setHeader(HTTP_HEADERS.SET_COOKIE, name + "=; Expires=Thu, 01 Jan 1970 00:00:00 GMT", false)
         return this
     }
 
@@ -226,8 +245,8 @@ export class ResponseBuilder {
      */
     sendRedirect(url: string, perma: boolean = false): void {
         this.reset()
-        this.statusCode = perma ? 308 : 307
-        this.headers.push(["location", url])
+        this.statusCode = perma ? HTTP_STATUS.PERMANENT_REDIRECT : HTTP_STATUS.TEMPORARY_REDIRECT
+        this.headers.push([HTTP_HEADERS.LOCATION, url])
         this.submit = true
     }
 
@@ -240,7 +259,7 @@ export class ResponseBuilder {
     sendRedirectCustom(url: string, status: number): void {
         this.reset()
         this.statusCode = status
-        this.headers.push(["location", url])
+        this.headers.push([HTTP_HEADERS.LOCATION, url])
         this.submit = true
     }
 
@@ -252,13 +271,13 @@ export class ResponseBuilder {
      */
     sendBasicAuth(
         bodyInit: BodyInit = null,
-        realm: string = "User Visible Realm",
-        charset: string = "UTF-8",
+        realm: string = RESPONSE_DEFAULTS.REALM,
+        charset: string = RESPONSE_DEFAULTS.CHARSET,
     ): void {
         this.reset()
-        this.statusCode = 401
+        this.statusCode = HTTP_STATUS.UNAUTHORIZED
         this.setHeader(
-            'WWW-Authenticate',
+            HTTP_HEADERS.WWW_AUTHENTICATE,
             'Basic realm="' + realm +
             '", charset="' + charset + '"'
         )

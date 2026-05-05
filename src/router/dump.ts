@@ -2,7 +2,7 @@ import type { Server } from "bun"
 import type { EndpointRoute } from "../types"
 import { stringifyHttpMethods } from "../method"
 import { isMergedRequestMiddleware, unmergeRequestMiddleware } from "../middleware"
-import type { RequestMiddleware } from "../types"
+import type { RequestMiddleware, WebSocketData } from "../types"
 
 /**
  * Creates a string tuple that contains the method, path and name of the middleware
@@ -64,7 +64,7 @@ export function getDefinitionString(
  */
 export function dump(
     routes: EndpointRoute[],
-    ...servers: Server[]
+    ...servers: Server<WebSocketData>[]
 ): string {
     if (routes.length == 0) {
         throw new Error("No endpoint routes defined")
