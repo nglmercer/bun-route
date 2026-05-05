@@ -1,5 +1,5 @@
 import type { Request } from "../types"
-import { ResponseBuilder } from "../responseBuilder"
+import { ResponseBuilder, HTTP_HEADERS, HTTP_STATUS } from "../responseBuilder"
 import { trimSpaces } from "../path"
 
 /**
@@ -13,7 +13,7 @@ export function parseCookies(
 ): void {
     if (!req.originCookies) {
         req.cookies = {}
-        const cookieHeader = req.headers.get("cookie")
+        const cookieHeader = req.headers.get(HTTP_HEADERS.COOKIE)
         if (!cookieHeader) {
             req.originCookies = {}
             return
@@ -56,7 +56,7 @@ export function storeCookies(
 ): void {
     if (!req.cookies) {
         res.reset()
-            .status(500)
+            .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
             .send("Request cookies store error")
         return
     }

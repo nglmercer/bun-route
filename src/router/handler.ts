@@ -1,5 +1,5 @@
 import type { Server } from "bun"
-import { ResponseBuilder } from "../responseBuilder"
+import { ResponseBuilder, HTTP_STATUS } from "../responseBuilder"
 import { parseHttpMethods } from "../method"
 import { splitPath, requestPathMatchesRouteDefinition } from "../path"
 import type { Awaitable, BunRequestHandler, EndpointRoute, Request, WebSocketData } from "../types"
@@ -29,7 +29,7 @@ export function innerHandle(
     // @ts-nocheck
     const sock = req.server.requestIP(req as any) //TODO: fix bun/node type errors
     if (!sock) {
-        return new Response("Request closed to early", { status: 500 })
+        return new Response("Request closed to early", { status: HTTP_STATUS.INTERNAL_SERVER_ERROR })
     }
     req.sock = sock
 
@@ -132,7 +132,7 @@ export function route(
     }
 
     res.reset()
-        .status(404)
+        .status(HTTP_STATUS.NOT_FOUND)
         .body("Not found")
 }
 
@@ -205,7 +205,7 @@ export async function routeAsync(
     }
 
     res.reset()
-        .status(404)
+        .status(HTTP_STATUS.NOT_FOUND)
         .body("Not found")
 }
 

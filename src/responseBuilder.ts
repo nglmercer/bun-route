@@ -7,12 +7,15 @@ export const HTTP_STATUS = {
     PERMANENT_REDIRECT: 308,
     UNAUTHORIZED: 401,
     NOT_FOUND: 404,
+    INTERNAL_SERVER_ERROR: 500,
 } as const
 
 export const HTTP_HEADERS = {
     LOCATION: "location",
     WWW_AUTHENTICATE: "WWW-Authenticate",
     SET_COOKIE: "Set-Cookie",
+    AUTHORIZATION: "authorization",
+    COOKIE: "cookie",
 } as const
 
 export const RESPONSE_DEFAULTS = {

@@ -1,6 +1,7 @@
 import { type Server } from "bun"
 import type { BunRequestHandler, EndpointRoute, RequestMiddleware, WebSocketData } from "./types"
 import { HttpMethodString } from "./method"
+import { RESPONSE_DEFAULTS } from "./responseBuilder"
 
 // Import modularized components
 import { parseCookies, storeCookies } from "./router/cookies"
@@ -284,8 +285,8 @@ export class Router {
         method: "*" | HttpMethodString,
         path: string,
         validator: ((username: string, password: string) => boolean),
-        realm: string = "User Visible Realm",
-        charset: string = "UTF-8",
+        realm: string = RESPONSE_DEFAULTS.REALM,
+        charset: string = RESPONSE_DEFAULTS.CHARSET,
     ): Router {
         registerBasicAuth(this.routes, method, path, validator, realm, charset)
         return this

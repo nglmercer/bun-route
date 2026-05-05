@@ -2,6 +2,8 @@ import { statSync } from "fs"
 import { join } from "path"
 import { splitRoutePath } from "../path"
 import { parseHttpMethods, HttpMethodString } from "../method"
+import { PATH_CHARS } from "../path"
+import { HTTP_STATUS, HTTP_HEADERS } from "../responseBuilder"
 import type { EndpointRoute, RequestMiddleware, WebSocketData } from "../types"
 
 /**
@@ -83,7 +85,7 @@ export function staticFiles(
 
     const staticMiddleware: RequestMiddleware =
         (req, res) => {
-            if (req.path.endsWith("/" + indexFile)) {
+            if (req.path.endsWith(PATH_CHARS.SLASH + indexFile)) {
                 res.sendRedirect(
                     req.path.slice(0, -indexFile.length),
                     true,
@@ -94,11 +96,11 @@ export function staticFiles(
             let targetPath = join(
                 targetDir,
                 req.splitPath == undefined ?
-                    "/" :
+                    PATH_CHARS.SLASH :
                     req.path
             )
 
-            if (targetPath.endsWith("/")) {
+            if (targetPath.endsWith(PATH_CHARS.SLASH)) {
                 targetPath += indexFile
             }
 
@@ -116,13 +118,13 @@ export function staticFiles(
                     if (exist) {
                         res.send(await file.arrayBuffer())
                     } else {
-                        res.status(404)
+                        res.status(HTTP_STATUS.NOT_FOUND)
                     }
                 }).catch(() => {
-                    res.status(500, "Error while loading response content")
+                    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR, "Error while loading response content")
                 })
             } catch (_) {
-                res.status(500, "Error while init response content")
+                res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR, "Error while init response content")
             }
         }
 
@@ -154,7 +156,7 @@ export function basicAuth(
     charset: string = "UTF-8",
 ): EndpointRoute[] {
     const basicAuthMiddleware: RequestMiddleware = (req, res) => {
-        const auth = req.headers.get("authorization")
+        const auth = req.headers.get(HTTP_HEADERS.AUTHORIZATION)
         if (!auth) {
             res.sendBasicAuth(
                 "Missing authorization header",
@@ -163,7 +165,7 @@ export function basicAuth(
             )
             return
         }
-        let splitIndex = auth.indexOf(" ")
+        let splitIndex = auth.indexOf(PATH_CHARS.SPACE)
         if (splitIndex === -1) {
             res.sendBasicAuth(
                 "Unprocessable authorization header",

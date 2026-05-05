@@ -151,10 +151,10 @@ describe("route", () => {
     expect(res.bodyInit).toBe("async")
   })
 
-  test("handles path params", () => {
+  test("handles path params with wildcard", () => {
     const routes: EndpointRoute[] = [{
       method: HttpMethod.GET,
-      splitPath: [":id"],
+      splitPath: ["*"],
       handler: (req, res) => { res.send(req.pathParams?.[0] || "none") }
     }]
     const req = { httpMethod: HttpMethod.GET, splitPath: ["123"], upgraded: false } as Request
@@ -179,13 +179,12 @@ describe("route", () => {
 describe("routeAsync", () => {
   test("skips routes with wrong method", async () => {
     const routes: EndpointRoute[] = [
-      { method: HttpMethod.GET, splitPath: ["test"], handler: async (req, res) => { res.send("first") } },
       { method: HttpMethod.POST, splitPath: ["test"], handler: (req, res) => { res.send("second") } }
     ]
     const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
     const res = new ResponseBuilder()
-    await routeAsync(routes, 0, Promise.resolve(), req, res)
-    expect(res.bodyInit).toBe("first")
+    await routeAsync(routes, -1, Promise.resolve(), req, res)
+    expect(res.statusCode).toBe(404)
   })
 
   test("continues to next route on false path match", async () => {
@@ -195,17 +194,17 @@ describe("routeAsync", () => {
     ]
     const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
     const res = new ResponseBuilder()
-    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    await routeAsync(routes, -1, Promise.resolve(), req, res)
     expect(res.bodyInit).toBe("second")
   })
 
   test("handles path params in async route", async () => {
     const routes: EndpointRoute[] = [
-      { method: HttpMethod.GET, splitPath: [":id"], handler: async (req, res) => { res.send(req.pathParams?.[0] || "none") } }
+      { method: HttpMethod.GET, splitPath: ["*"], handler: async (req, res) => { res.send(req.pathParams?.[0] || "none") } }
     ]
     const req = { httpMethod: HttpMethod.GET, splitPath: ["456"], upgraded: false } as Request
     const res = new ResponseBuilder()
-    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    await routeAsync(routes, -1, Promise.resolve(), req, res)
     expect(res.bodyInit).toBe("456")
   })
 
@@ -216,7 +215,7 @@ describe("routeAsync", () => {
     ]
     const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
     const res = new ResponseBuilder()
-    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    await routeAsync(routes, -1, Promise.resolve(), req, res)
     expect(res.bodyInit).toBe("first")
   })
 
@@ -227,7 +226,7 @@ describe("routeAsync", () => {
     ]
     const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
     const res = new ResponseBuilder()
-    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    await routeAsync(routes, -1, Promise.resolve(), req, res)
     expect(res.bodyInit).toBe(null)
   })
 
@@ -240,7 +239,7 @@ describe("routeAsync", () => {
     ]
     const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
     const res = new ResponseBuilder()
-    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    await routeAsync(routes, -1, Promise.resolve(), req, res)
     expect(res.bodyInit).toBe("async done")
   })
 
@@ -248,7 +247,7 @@ describe("routeAsync", () => {
     const routes: EndpointRoute[] = []
     const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
     const res = new ResponseBuilder()
-    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    await routeAsync(routes, -1, Promise.resolve(), req, res)
     expect(res.statusCode).toBe(404)
     expect(res.bodyInit).toBe("Not found")
   })

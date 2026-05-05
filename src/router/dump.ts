@@ -2,6 +2,7 @@ import type { Server } from "bun"
 import type { EndpointRoute } from "../types"
 import { stringifyHttpMethods } from "../method"
 import { isMergedRequestMiddleware, unmergeRequestMiddleware } from "../middleware"
+import { PATH_CHARS } from "../path"
 import type { RequestMiddleware, WebSocketData } from "../types"
 
 /**
@@ -16,7 +17,7 @@ export function getDefinitionString(
     handler: RequestMiddleware,
     mergedToTop: boolean,
 ): [string, string, string] {
-    let parts: [string, string, string] = ["/", "X", "/"]
+    let parts: [string, string, string] = [PATH_CHARS.SLASH, "X", PATH_CHARS.SLASH]
 
     if (mergedToTop) {
         parts[0] = "^ (M)"
@@ -25,9 +26,9 @@ export function getDefinitionString(
     }
 
     if (route.splitPath) {
-        parts[1] = "/" + route.splitPath.join("/")
+        parts[1] = PATH_CHARS.SLASH + route.splitPath.join(PATH_CHARS.SLASH)
     } else {
-        parts[1] = "/"
+        parts[1] = PATH_CHARS.SLASH
     }
 
     if (
