@@ -11,11 +11,20 @@
     "allowJs": true,
     "noEmit": true,
     "outDir": "dist",
-    "rootDir": "./src",
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "src/*": [
+        "./src/*"
+      ]
+    }
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "examples/**/*.ts"
   ],
   "exclude": [
     "dist",
