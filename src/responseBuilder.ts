@@ -102,8 +102,9 @@ export class ResponseBuilder {
      * @returns The final response object
      */
     build(): Response {
+        type BunBodyInit = string | ArrayBuffer | Blob | FormData | URLSearchParams | ReadableStream | null
         return new Response(
-            this.bodyInit as any, //TODO: fix bun/node type errors
+            this.bodyInit as BunBodyInit,
             {
                 status: this.statusCode,
                 statusText: this.statusText,
