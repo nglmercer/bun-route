@@ -29,20 +29,20 @@ export const createMockReq = (
             ? headers
             : new Headers((headers as any) || {});
 
+    //@ts-expect-error
     const baseRequest: MockRequest = {
         headers: mockHeaders,
         method: "GET",
         url: "http://localhost/",
-        // Required fields — now non-optional so TS(2345) is resolved
         httpMethod: overrides.method ?? "GET",
         path: "/",
         splitPath: ["/"],
         server: undefined,
         sock: undefined,
         cookies: {},
-        originCookies: [],
+        originCookies: undefined as any,  // ← was [], change to undefined
         ...rest,
-    } as any as MockRequest; // narrowing cast only needed because `Request` has
+    };
     // read-only built-ins we can't spread literally
 
     return baseRequest;

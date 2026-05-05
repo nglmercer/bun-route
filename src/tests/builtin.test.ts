@@ -197,7 +197,11 @@ describe("builtin.staticFiles", () => {
   it("serves a file if it exists", async () => {
     const routes: EndpointRoute[] = [];
     staticFiles(routes, "/static", __dirname);
-    const req = createMockReq({ path: "/static/builtin.test.ts", splitPath: ["static", "builtin.test.ts"], pathParams: [] });
+    const req = createMockReq({
+      path: "/static/builtin.test.ts",
+      splitPath: ["static", "builtin.test.ts"],
+      pathParams: ["builtin.test.ts"]  // ← was [], needs the filename
+    });
     const res = createMockRes();
     await routes[0].handler(req, res);
     expect(res.send).toHaveBeenCalled();
