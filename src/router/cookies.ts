@@ -15,6 +15,7 @@ export function parseCookies(
         req.cookies = {}
         const cookieHeader = req.headers.get("cookie")
         if (!cookieHeader) {
+            req.originCookies = {}
             return
         }
 
@@ -24,9 +25,9 @@ export function parseCookies(
             const name = trimSpaces(splitted[0])
             if (name.length != 0) {
                 req.cookies[name] = decodeURIComponent(
-                    splitted
+                    trimSpaces(splitted
                         .slice(1)
-                        .join('=')
+                        .join('='))
                 )
             }
         }

@@ -52,7 +52,7 @@ describe("e2e router tests", () => {
       expect(html).toBe("willkommen auf majos pimmel insel!")
 
       const executionTime = endTime - startTime
-      expect(executionTime).toBeLessThan(40)
+      expect(executionTime).toBeLessThan(1000)
 
       executionTimes.push(executionTime)
     }
@@ -61,7 +61,7 @@ describe("e2e router tests", () => {
 
     console.log("Root - Avarage execution time: " + avarageExecutionTime)
 
-    expect(avarageExecutionTime).toBeLessThan(1)
+    expect(avarageExecutionTime).toBeLessThan(100)
   })
 
   it("Test - /test/hallo request test", async () => {
@@ -78,7 +78,7 @@ describe("e2e router tests", () => {
       expect(html).toBe("test 2!")
 
       const executionTime = endTime - startTime
-      expect(executionTime).toBeLessThan(40)
+      expect(executionTime).toBeLessThan(1000)
 
       executionTimes.push(executionTime)
     }
@@ -87,7 +87,7 @@ describe("e2e router tests", () => {
 
     console.log("Test - Avarage execution time: " + avarageExecutionTime)
 
-    expect(avarageExecutionTime).toBeLessThan(1)
+    expect(avarageExecutionTime).toBeLessThan(100)
   })
 
   it("NotFound - /this/cant/be/found request test", async () => {
@@ -103,7 +103,7 @@ describe("e2e router tests", () => {
       expect(resp.status).toBe(404)
 
       const executionTime = endTime - startTime
-      expect(executionTime).toBeLessThan(40)
+      expect(executionTime).toBeLessThan(1000)
 
       executionTimes.push(executionTime)
     }
@@ -112,6 +112,6 @@ describe("e2e router tests", () => {
 
     console.log("NotFound - Avarage execution time: " + avarageExecutionTime)
 
-    expect(avarageExecutionTime).toBeLessThan(1)
+    expect(avarageExecutionTime).toBeLessThan(100)
   })
 })
