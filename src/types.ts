@@ -1,11 +1,15 @@
-import { type Server, type SocketAddress, type WebSocketData } from "bun"
+import { type Server, type SocketAddress } from "bun"
 import { type HttpMethod } from "./method"
 import { BunRequest } from "./request"
 import type { ResponseBuilder } from "./responseBuilder"
-import { SplitPath } from "./router"
+import type { SplitPath } from "./path"
 
 export type Awaitable<T> = T | Promise<T>
-
+export type WebSocketData = {
+    createdAt: number;
+    channelId?: string;
+    authToken?: string;
+};
 export type Request = BunRequest & {
     /**
      * `req.pathParams` is the path parameters of the request.
@@ -32,7 +36,7 @@ export type Request = BunRequest & {
      * `req.server` is the server that is handling the request.
      * It is always available in a `Router` handled request.
      */
-    server: Server,
+    server: Server<WebSocketData>,
     /**
      * `req.sock` is the socket address of the request.
      * It is always available in a `Router` handled request.
@@ -56,7 +60,7 @@ export type Request = BunRequest & {
     upgraded?: true
 }
 
-export type BunRequestHandler = (request: Request, server: Server) => Awaitable<Response>
+export type BunRequestHandler = (request: Request, server: Server<WebSocketData>) => Awaitable<Response>
 
 export type RequestMiddleware = (req: Request, res: ResponseBuilder) => Awaitable<void>
 
