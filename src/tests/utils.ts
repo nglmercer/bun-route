@@ -1,5 +1,7 @@
 import { mock, type Mock } from "bun:test";
 import { ResponseBuilder } from "../responseBuilder"; // adjust path
+import type { Server } from "bun";
+import type { WebSocketData } from "../types";
 // Make previously-optional fields required to match the actual Request shape,
 // and add the missing `upgraded` property.
 type MockRequest = Request & {
@@ -88,15 +90,39 @@ export const createMockRes = (): ResponseBuilder => {
 };
 
 /**
- * Mock Server for WebSocket/Upgrade testing
+ * Mock Server for WebSocket/Upgrade testing.
+ * Stubs every member of Bun's Server<WebSocketData> interface so the type
+ * check passes without maintaining a separate interface.
  */
-export const createMockServer = () => ({
-    upgrade: mock(() => true as Boolean),
-    pendingWebSockets: 0,
-    publish: mock(() => 0),
-    requestIP: mock(() => ({
-        address: "127.0.0.1",
-        family: "IPv4",
+export const createMockServer = () => {
+    const server = {
+        upgrade: mock(() => true),
+        pendingWebSockets: 0,
+        publish: mock(() => 0),
+        requestIP: mock(() => ({ address: "127.0.0.1", family: "IPv4", port: 3000 })),
+        stop: mock(async () => { }),
+        reload: mock(() => { }),
+        fetch: mock(async () => new Response(null)),
+        subscriberCount: mock(() => 0),
+        subscribe: mock(() => { }),
+        unsubscribe: mock(() => { }),
+        isSubscribed: mock(() => false),
+        cork: mock((cb: any) => cb()),
+        ref: mock(() => { }),
+        unref: mock(() => { }),
+        hostname: "localhost",
         port: 3000,
-    })),
-});
+        development: false,
+        id: "",
+    } as unknown as Server<WebSocketData>;
+
+    // Read-only in the type but settable via defineProperty on a plain object
+    Object.defineProperty(server, "url", {
+        value: new URL("http://localhost:3000"),
+        writable: false,
+        enumerable: true,
+        configurable: true,
+    });
+
+    return server;
+};

@@ -3,7 +3,7 @@ import { getDefinitionString, dump } from "../router/dump";
 import type { EndpointRoute } from "../types";
 import { splitRoutePath } from "../path";
 import { parseHttpMethods } from "../method";
-
+import { createMockServer } from "./utils";
 describe("dump.getDefinitionString", () => {
   it("returns correct method, path and handler name", () => {
     const route: EndpointRoute = {
@@ -99,7 +99,13 @@ describe("dump.dump", () => {
       method: parseHttpMethods("GET"),
       handler: () => { }
     }];
-    const mockServer = { url: "http://localhost:3000" } as any;
+    const mockServer = createMockServer();
+    Object.defineProperty(mockServer, "url", {
+      value: new URL("http://localhost:3000"),
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
     const result = dump(routes, mockServer);
     expect(result).toContain("Server is listening on http://localhost:3000");
   });
@@ -111,8 +117,20 @@ describe("dump.dump", () => {
       handler: () => { }
     }];
 
-    const mockServer1 = { url: "http://localhost:3000" } as any;
-    const mockServer2 = { url: "http://localhost:3001" } as any;
+    const mockServer1 = createMockServer();
+    Object.defineProperty(mockServer1, "url", {
+      value: new URL("http://localhost:3000"),
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
+    const mockServer2 = createMockServer();
+    Object.defineProperty(mockServer2, "url", {
+      value: new URL("http://localhost:3001"),
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
     const result = dump(routes, mockServer1, mockServer2);
     expect(result).toContain("Server is listening on:");
     expect(result).toContain("- http://localhost:3000");
