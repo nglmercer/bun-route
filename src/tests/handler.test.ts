@@ -59,7 +59,7 @@ describe("innerHandle", () => {
     expect(await res.text()).toBe("from hook")
   })
 
-  test("handles async beforeSent hook in async path", async () => {
+   test("handles async beforeSent hook in async path", async () => {
     const routes: EndpointRoute[] = [{
       method: HttpMethod.GET,
       splitPath: ["test"],
@@ -80,6 +80,26 @@ describe("innerHandle", () => {
     } as unknown as Server<WebSocketData>
     const res = await innerHandle(routes, req, server)
     expect(await res.text()).toBe("async hook")
+  })
+
+  test("handles sync route with async beforeSent hook", async () => {
+    const routes: EndpointRoute[] = [{
+      method: HttpMethod.GET,
+      splitPath: ["test"],
+      handler: (req, res) => {
+        res.beforeSent(async () => {
+          await new Promise(r => setTimeout(r, 10))
+          res.body("async hook from sync")
+        })
+        res.send("matched")
+      }
+    }]
+    const req = new Request("http://localhost/test") as Request
+    const server = {
+      requestIP: () => ({ address: "127.0.0.1", family: "IPv4", port: 0 })
+    } as unknown as Server<WebSocketData>
+    const res = await innerHandle(routes, req, server)
+    expect(await res.text()).toBe("async hook from sync")
   })
 })
 
