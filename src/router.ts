@@ -77,6 +77,21 @@ export class Router {
     handle: BunRequestHandler = createHandler(this.routes)
 
     /**
+     * Send a request directly to the router without an HTTP server.
+     * Useful for testing.
+     * @param request A Request object, or a URL string.
+     * @param options RequestInit options if the first param is a string.
+     * @returns A promise of the Response object returned by the handler.
+     */
+    request(request: Request | string, options?: RequestInit): Promise<Response> {
+        const req = typeof request === "string" ? new Request(request, options) : request;
+        const res = this.handle(req as any, {
+            requestIP: () => ({ address: "127.0.0.1", family: "IPv4", port: 0 })
+        } as unknown as Server<WebSocketData>);
+        return Promise.resolve(res as Response);
+    }
+
+    /**
      * Register a handler to run for all incoming requests.
      * @param method The HTTP method to run the handler on (undefined = all)
      * @param path The path to run the handler on (undefined = all)

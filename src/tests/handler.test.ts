@@ -1,0 +1,278 @@
+import { describe, test, expect, mock } from "bun:test"
+import { createHandler, innerHandle, route, routeAsync } from "../router/handler"
+import { ResponseBuilder } from "../responseBuilder"
+import type { EndpointRoute, Request, WebSocketData } from "../types"
+import { HttpMethod } from "../method"
+import { splitPath } from "../path"
+
+describe("innerHandle", () => {
+  test("returns 500 when requestIP returns null", async () => {
+    const routes: EndpointRoute[] = []
+    const req = new Request("http://localhost/test") as Request
+    const server = { requestIP: () => null } as unknown as Server<WebSocketData>
+    const res = await innerHandle(routes, req, server)
+    expect(res.status).toBe(500)
+  })
+
+  test("handles upgraded request in sync path", async () => {
+    const routes: EndpointRoute[] = [{
+      method: HttpMethod.GET,
+      splitPath: ["test"],
+      handler: (req, res) => { req.upgraded = true }
+    }]
+    const req = new Request("http://localhost/test") as Request
+    const server = {
+      requestIP: () => ({ address: "127.0.0.1", family: "IPv4", port: 0 })
+    } as unknown as Server<WebSocketData>
+    const res = await innerHandle(routes, req, server)
+    expect(res).toBeUndefined()
+  })
+
+  test("handles upgraded request in async path", async () => {
+    const routes: EndpointRoute[] = [{
+      method: HttpMethod.GET,
+      splitPath: ["test"],
+      handler: (req, res) => { return new Promise(r => { req.upgraded = true; r() }) }
+    }]
+    const req = new Request("http://localhost/test") as Request
+    const server = {
+      requestIP: () => ({ address: "127.0.0.1", family: "IPv4", port: 0 })
+    } as unknown as Server<WebSocketData>
+    const res = await innerHandle(routes, req, server)
+    expect(res).toBeUndefined()
+  })
+
+  test("handles beforeSent hook in sync path", async () => {
+    const routes: EndpointRoute[] = [{
+      method: HttpMethod.GET,
+      splitPath: ["test"],
+      handler: (req, res) => {
+        res.beforeSent(() => { res.body("from hook") })
+        res.send("matched")
+      }
+    }]
+    const req = new Request("http://localhost/test") as Request
+    const server = {
+      requestIP: () => ({ address: "127.0.0.1", family: "IPv4", port: 0 })
+    } as unknown as Server<WebSocketData>
+    const res = await innerHandle(routes, req, server)
+    expect(await res.text()).toBe("from hook")
+  })
+
+  test("handles async beforeSent hook in async path", async () => {
+    const routes: EndpointRoute[] = [{
+      method: HttpMethod.GET,
+      splitPath: ["test"],
+      handler: (req, res) => {
+        return new Promise(r => {
+          res.beforeSent(async () => {
+            await new Promise(r2 => setTimeout(r2, 10))
+            res.body("async hook")
+          })
+          res.send("matched")
+          r()
+        })
+      }
+    }]
+    const req = new Request("http://localhost/test") as Request
+    const server = {
+      requestIP: () => ({ address: "127.0.0.1", family: "IPv4", port: 0 })
+    } as unknown as Server<WebSocketData>
+    const res = await innerHandle(routes, req, server)
+    expect(await res.text()).toBe("async hook")
+  })
+})
+
+describe("route", () => {
+  test("returns 404 when no routes match", () => {
+    const routes: EndpointRoute[] = []
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    route(routes, req, res)
+    expect(res.statusCode).toBe(404)
+    expect(res.bodyInit).toBe("Not found")
+  })
+
+  test("matches route with correct method and path", () => {
+    const routes: EndpointRoute[] = [{
+      method: HttpMethod.GET,
+      splitPath: ["test"],
+      handler: (req, res) => { res.send("matched") }
+    }]
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    route(routes, req, res)
+    expect(res.bodyInit).toBe("matched")
+  })
+
+  test("skips routes with wrong method", () => {
+    const routes: EndpointRoute[] = [{
+      method: HttpMethod.POST,
+      splitPath: ["test"],
+      handler: (req, res) => { res.send("matched") }
+    }]
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    route(routes, req, res)
+    expect(res.statusCode).toBe(404)
+  })
+
+  test("stops when res.submit is true", () => {
+    const routes: EndpointRoute[] = [
+      { method: HttpMethod.GET, splitPath: ["test"], handler: (req, res) => { res.send("first") } },
+      { method: HttpMethod.GET, splitPath: ["test"], handler: (req, res) => { res.send("second") } }
+    ]
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    route(routes, req, res)
+    expect(res.bodyInit).toBe("first")
+  })
+
+  test("stops when req.upgraded is true", () => {
+    const routes: EndpointRoute[] = [
+      { method: HttpMethod.GET, splitPath: ["test"], handler: (req, res) => { req.upgraded = true } },
+      { method: HttpMethod.GET, splitPath: ["test"], handler: (req, res) => { res.send("second") } }
+    ]
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    route(routes, req, res)
+    expect(res.bodyInit).toBe(null)
+  })
+
+  test("handles async handler with routeAsync", async () => {
+    const routes: EndpointRoute[] = [{
+      method: HttpMethod.GET,
+      splitPath: ["test"],
+      handler: (req, res) => { return new Promise(r => { res.send("async"); r() }) }
+    }]
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    await route(routes, req, res)
+    expect(res.bodyInit).toBe("async")
+  })
+
+  test("handles path params", () => {
+    const routes: EndpointRoute[] = [{
+      method: HttpMethod.GET,
+      splitPath: [":id"],
+      handler: (req, res) => { res.send(req.pathParams?.[0] || "none") }
+    }]
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["123"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    route(routes, req, res)
+    expect(res.bodyInit).toBe("123")
+  })
+
+  test("handles ALL method", () => {
+    const routes: EndpointRoute[] = [{
+      method: HttpMethod.ALL,
+      splitPath: ["test"],
+      handler: (req, res) => { res.send("matched all") }
+    }]
+    const req = { httpMethod: HttpMethod.POST, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    route(routes, req, res)
+    expect(res.bodyInit).toBe("matched all")
+  })
+})
+
+describe("routeAsync", () => {
+  test("skips routes with wrong method", async () => {
+    const routes: EndpointRoute[] = [
+      { method: HttpMethod.GET, splitPath: ["test"], handler: async (req, res) => { res.send("first") } },
+      { method: HttpMethod.POST, splitPath: ["test"], handler: (req, res) => { res.send("second") } }
+    ]
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    expect(res.bodyInit).toBe("first")
+  })
+
+  test("continues to next route on false path match", async () => {
+    const routes: EndpointRoute[] = [
+      { method: HttpMethod.GET, splitPath: ["other"], handler: (req, res) => { res.send("first") } },
+      { method: HttpMethod.GET, splitPath: ["test"], handler: (req, res) => { res.send("second") } }
+    ]
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    expect(res.bodyInit).toBe("second")
+  })
+
+  test("handles path params in async route", async () => {
+    const routes: EndpointRoute[] = [
+      { method: HttpMethod.GET, splitPath: [":id"], handler: async (req, res) => { res.send(req.pathParams?.[0] || "none") } }
+    ]
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["456"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    expect(res.bodyInit).toBe("456")
+  })
+
+  test("stops when res.submit becomes true in async", async () => {
+    const routes: EndpointRoute[] = [
+      { method: HttpMethod.GET, splitPath: ["test"], handler: async (req, res) => { res.send("first") } },
+      { method: HttpMethod.GET, splitPath: ["test"], handler: (req, res) => { res.send("second") } }
+    ]
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    expect(res.bodyInit).toBe("first")
+  })
+
+  test("stops when req.upgraded becomes true in async", async () => {
+    const routes: EndpointRoute[] = [
+      { method: HttpMethod.GET, splitPath: ["test"], handler: async (req, res) => { req.upgraded = true } },
+      { method: HttpMethod.GET, splitPath: ["test"], handler: (req, res) => { res.send("second") } }
+    ]
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    expect(res.bodyInit).toBe(null)
+  })
+
+  test("handles async handler in routeAsync", async () => {
+    const routes: EndpointRoute[] = [
+      { method: HttpMethod.GET, splitPath: ["test"], handler: async (req, res) => {
+        await new Promise(r => setTimeout(r, 10))
+        res.send("async done")
+      } }
+    ]
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    expect(res.bodyInit).toBe("async done")
+  })
+
+  test("returns 404 when no async routes match", async () => {
+    const routes: EndpointRoute[] = []
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const res = new ResponseBuilder()
+    await routeAsync(routes, 0, Promise.resolve(), req, res)
+    expect(res.statusCode).toBe(404)
+    expect(res.bodyInit).toBe("Not found")
+  })
+})
+
+describe("createHandler", () => {
+  test("creates handler function", () => {
+    const routes: EndpointRoute[] = []
+    const handler = createHandler(routes)
+    expect(typeof handler).toBe("function")
+  })
+
+  test("created handler processes request", async () => {
+    const routes: EndpointRoute[] = [{
+      method: HttpMethod.GET,
+      splitPath: ["test"],
+      handler: (req, res) => { res.send("handled") }
+    }]
+    const handler = createHandler(routes)
+    const req = new Request("http://localhost/test") as Request
+    const server = {
+      requestIP: () => ({ address: "127.0.0.1", family: "IPv4", port: 0 })
+    } as unknown as Server<WebSocketData>
+    const res = await handler(req, server)
+    expect(res).toBeInstanceOf(Response)
+  })
+})
