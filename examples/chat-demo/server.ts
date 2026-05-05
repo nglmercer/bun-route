@@ -8,24 +8,47 @@ import type { ApiInfo } from "./lib/interfaces"
 
 const router = new Router()
 
-// Logging middleware
+// Error handler — catches all unhandled errors
+router.onError((err, req, res) => {
+    console.error(`[ERROR] ${req.httpMethod} ${req.path}:`, err.message)
+    const stringError = JSON.stringify({
+        error: "Internal server error",
+        message: err.message,
+    })
+    res.status(500).send(stringError)
+})
+
+// Request ID middleware — adds X-Request-Id header
+router.requestId("*", "/**")
+
+// CORS middleware — allows all origins for the demo
+router.cors("*", "/**", {
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    maxAge: 86400,
+})
+
+// Logging middleware — uses req.ip and req.path directly
 router.use("*", "/**", (req: Request, res: ResponseBuilder) => {
     const timestamp = new Date().toISOString()
     const method = req.httpMethod
-    const url = new URL(req.url).pathname
-    console.log(`[${timestamp}] --> ${method} ${url}`)
+    const ip = req.ip
+
+    console.log(`[${timestamp}] --> ${method} ${req.path} from ${ip}`)
 
     // Log response using beforeSent hook
     res.beforeSent((res) => {
         const timestamp = new Date().toISOString()
-        console.log(`[${timestamp}] <-- ${res.statusCode} ${method} ${url}`)
+        console.log(`[${timestamp}] <-- ${res.statusCode} ${method} ${req.path} [${req.id}]`)
     })
 })
 
-// Register all routes
-registerAuthRoutes(router)
-registerUploadRoutes(router)
-registerChatRoutes(router)
+// Register routes using group() for organization
+router.group("/api", (api) => {
+    registerAuthRoutes(api)
+    registerUploadRoutes(api)
+    registerChatRoutes(api)
+})
 
 // Register WebSocket path and handlers
 router.ws("/chat")
@@ -40,14 +63,26 @@ router.get("/", (_: Request, res: ResponseBuilder) => {
     res.send(Bun.file(import.meta.dir + "/html/index.html"))
 })
 
-// Demo info route
-router.get("/api/info", (_: Request, res: ResponseBuilder) => {
+// Demo info route — uses req.query() for filtering
+router.get("/api/info", (req: Request, res: ResponseBuilder) => {
     const info: ApiInfo = {
         maxFileSize: "50 MB",
         uploadDir: "./uploads",
         endpoints: router.getRoutes(),
         websocket: "WS /chat"
     }
+
+    // Support filtering endpoints by method via query param
+    const methodFilter = req.query("method") as string;
+    if (methodFilter) {
+        const filtered = info.endpoints.filter(
+            (e) => e.method.toUpperCase() === methodFilter.toUpperCase()
+        );
+        res.setHeader("Content-Type", "application/json")
+        res.send(JSON.stringify({ ...info, endpoints: filtered }))
+        return;
+    }
+
     res.setHeader("Content-Type", "application/json")
     res.send(JSON.stringify(info))
 })
