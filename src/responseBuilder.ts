@@ -1,6 +1,8 @@
 import type { BodyInit } from "undici-types"
 import type { Awaitable, CookieOptions } from "./types"
 
+type BunBodyInit = BodyInit | import("bun").BunFile
+
 export const HTTP_STATUS = {
     OK: 200,
     TEMPORARY_REDIRECT: 307,
@@ -35,7 +37,7 @@ export class ResponseBuilder {
     submit: boolean = false
     statusCode: number = HTTP_STATUS.OK
     statusText?: string
-    bodyInit: BodyInit = null
+    bodyInit: BunBodyInit = null
     headers: [string, string][] = []
 
     beforeSentHooks: ((res: ResponseBuilder) => Awaitable<void>)[] | undefined
@@ -223,7 +225,7 @@ export class ResponseBuilder {
      * @returns The response builder instance
      */
     body(
-        bodyInit: BodyInit = null,
+        bodyInit: BunBodyInit = null,
     ): ResponseBuilder {
         this.bodyInit = bodyInit
         return this
@@ -234,7 +236,7 @@ export class ResponseBuilder {
      * @param bodyInit The body of the response, if any
      */
     send(
-        bodyInit: BodyInit = null,
+        bodyInit: BunBodyInit = null,
     ): void {
         this.bodyInit = bodyInit
         this.submit = true
@@ -273,7 +275,7 @@ export class ResponseBuilder {
      * @returns void because it is submitted to the client
      */
     sendBasicAuth(
-        bodyInit: BodyInit = null,
+        bodyInit: BunBodyInit = null,
         realm: string = RESPONSE_DEFAULTS.REALM,
         charset: string = RESPONSE_DEFAULTS.CHARSET,
     ): void {

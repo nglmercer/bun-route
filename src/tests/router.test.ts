@@ -204,6 +204,6 @@ describe("Router", () => {
     expect(() => {
       const router = new Router()
       router.static("/static", "/nonexistent/path/12345")
-    }).toThrow("ENOENT")
+    }).toThrow("static target is not a directory")
   })
 })
