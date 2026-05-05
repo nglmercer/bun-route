@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 import { ws, redirect, staticFiles, basicAuth, cookies } from "../router/builtin";
 import { parseHttpMethods } from "../method";
-import type { EndpointRoute, Request } from "../types";
+import type { EndpointRoute } from "../types";
 import { createMockReq, createMockRes } from "./utils";
 describe("builtin.ws", () => {
   it("adds a websocket route with GET method", () => {
@@ -18,7 +18,7 @@ describe("builtin.ws", () => {
     const upgradeMock = mock(() => true);
     const req = createMockReq({
       server: { upgrade: upgradeMock },
-      upgraded: false
+      upgraded: false as true
     });
     const res = createMockRes();
     routes[0].handler(req, res);
@@ -155,6 +155,7 @@ describe("builtin.cookies", () => {
     cookies(routes, "GET", "/cookies", true);
     const req = createMockReq({ headers: new Headers({ cookie: "a=1" }) });
     const res = createMockRes();
+    //@ts-expect-error
     res.beforeSent = mock((cb: (res: Response) => void) => { cb(res); });
     routes[0].handler(req, res);
     expect(res.beforeSent).toHaveBeenCalled();
@@ -196,7 +197,7 @@ describe("builtin.staticFiles", () => {
   it("serves a file if it exists", async () => {
     const routes: EndpointRoute[] = [];
     staticFiles(routes, "/static", __dirname);
-    const req = createMockReq({ path: "builtin.test.ts", splitPath: ["builtin.test.ts"] });
+    const req = createMockReq({ path: "/static/builtin.test.ts", splitPath: ["static", "builtin.test.ts"], pathParams: [] });
     const res = createMockRes();
     await routes[0].handler(req, res);
     expect(res.send).toHaveBeenCalled();
@@ -205,7 +206,7 @@ describe("builtin.staticFiles", () => {
   it("sends 404 if file does not exist", async () => {
     const routes: EndpointRoute[] = [];
     staticFiles(routes, "/static", __dirname);
-    const req = createMockReq({ path: "does-not-exist.txt", splitPath: ["does-not-exist.txt"] });
+    const req = createMockReq({ path: "/static/does-not-exist.txt", splitPath: ["static", "does-not-exist.txt"], pathParams: [] });
     const res = createMockRes();
     await routes[0].handler(req, res);
     expect(res.status).toHaveBeenCalledWith(404);
