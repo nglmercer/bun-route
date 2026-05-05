@@ -175,7 +175,7 @@ describe("route", () => {
     const routes: EndpointRoute[] = [{
       method: HttpMethod.GET,
       splitPath: ["*"],
-      handler: (req, res) => { res.send(req.pathParams?.[0] || "none") }
+      handler: (req, res) => { res.send((req.pathParams as string[])?.[0] || "none") }
     }]
     const req = { httpMethod: HttpMethod.GET, splitPath: ["123"], upgraded: false } as unknown as Request
     const res = new ResponseBuilder()
@@ -220,7 +220,7 @@ describe("routeAsync", () => {
 
   test("handles path params in async route", async () => {
     const routes: EndpointRoute[] = [
-      { method: HttpMethod.GET, splitPath: ["*"], handler: async (req, res) => { res.send(req.pathParams?.[0] || "none") } }
+      { method: HttpMethod.GET, splitPath: ["*"], handler: async (req, res) => { res.send((req.pathParams as string[])?.[0] || "none") } }
     ]
     const req = { httpMethod: HttpMethod.GET, splitPath: ["456"], upgraded: false } as unknown as Request
     const res = new ResponseBuilder()

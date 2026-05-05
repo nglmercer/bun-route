@@ -1,12 +1,12 @@
 import { type Server } from "bun"
-import type { BunRequestHandler, EndpointRoute, RequestMiddleware, WebSocketData, Request } from "./types"
+import type { Awaitable, BunRequestHandler, EndpointRoute, RequestMiddleware, WebSocketData, Request } from "./types"
 import { HttpMethodString, stringifyHttpMethods } from "./method"
-import { RESPONSE_DEFAULTS } from "./responseBuilder"
-
+import { RESPONSE_DEFAULTS, ResponseBuilder, HTTP_STATUS } from "./responseBuilder"
+import { splitRoutePath } from "./path"
+import { innerHandle } from "./router/handler"
 // Import modularized components
 import { parseCookies, storeCookies } from "./router/cookies"
 import { dump as dumpRoutes } from "./router/dump"
-import { createHandler } from "./router/handler"
 import {
     use as registerUse,
     get as registerGet,
@@ -26,6 +26,13 @@ import {
     basicAuth as registerBasicAuth,
     cookies as registerCookies,
 } from "./router/builtin"
+import { cors as registerCors, type CorsOptions } from "./router/cors"
+import { bodyParser as registerBodyParser, type BodyParserOptions } from "./router/bodyParser"
+import { rateLimit as registerRateLimit, type RateLimitOptions } from "./router/rateLimit"
+import { requestId as registerRequestId, type RequestIdOptions } from "./router/requestId"
+import { timeout as registerTimeout, type TimeoutOptions } from "./router/timeout"
+
+export type ErrorHandler = (err: Error, req: Request, res: ResponseBuilder) => Awaitable<void>
 
 /**
  * ## Simple Router
@@ -53,6 +60,7 @@ export class Router {
     routes: EndpointRoute[] = []
     mergeHandlers: boolean = true
     private wsHandlers?: Bun.WebSocketHandler<WebSocketData>
+    private errorHandler?: ErrorHandler
 
     // Expose cookie methods as static
     static parseCookies = parseCookies
@@ -88,7 +96,39 @@ export class Router {
      * @param server A bun server object
      * @returns Bun response, void or a promise of response or void
      */
-    handle: BunRequestHandler = createHandler(this.routes)
+    handle: BunRequestHandler = (request, server) => {
+        try {
+            const result = innerHandle(this.routes, request, server)
+            if (result && typeof (result as any).then === "function") {
+                return (result as Promise<Response>).catch((err: Error) => {
+                    if (this.errorHandler) {
+                        const res = new ResponseBuilder()
+                        const p = this.errorHandler(err, request as unknown as Request, res)
+                        if (p && typeof (p as any).then === "function") {
+                            return (p as Promise<void>).then(() => res.build())
+                        }
+                        return res.build()
+                    }
+                    return new Response("Internal Server Error", {
+                        status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+                    })
+                })
+            }
+            return result as Response
+        } catch (err) {
+            if (this.errorHandler) {
+                const res = new ResponseBuilder()
+                const p = this.errorHandler(err as Error, request as unknown as Request, res)
+                if (p && typeof (p as any).then === "function") {
+                    return (p as Promise<void>).then(() => res.build())
+                }
+                return res.build()
+            }
+            return new Response("Internal Server Error", {
+                status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
+            })
+        }
+    }
 
     /**
      * Send a request directly to the router without an HTTP server.
@@ -285,6 +325,16 @@ export class Router {
     }
 
     /**
+     * Register a global error handler for unhandled errors in route handlers.
+     * @param handler The error handler function
+     * @returns The router, for chaining
+     */
+    onError(handler: ErrorHandler): Router {
+        this.errorHandler = handler
+        return this
+    }
+
+    /**
      * Get the WebSocket handlers for Bun.serve.
      * @returns The WebSocket handlers, or undefined if not set.
      */
@@ -330,6 +380,113 @@ export class Router {
     ): Router {
         registerCookies(this.routes, method, path, autoResponseHeaders)
         return this
+    }
+
+    cors(
+        method: "*" | HttpMethodString,
+        path: string,
+        options?: CorsOptions,
+    ): Router {
+        registerCors(this.routes, method, path, options)
+        return this
+    }
+
+    body(
+        method: "*" | HttpMethodString,
+        path: string,
+        options?: BodyParserOptions,
+    ): Router {
+        registerBodyParser(this.routes, method, path, options)
+        return this
+    }
+
+    rateLimit(
+        method: "*" | HttpMethodString,
+        path: string,
+        options: RateLimitOptions,
+    ): Router {
+        registerRateLimit(this.routes, method, path, options)
+        return this
+    }
+
+    requestId(
+        method: "*" | HttpMethodString,
+        path: string,
+        options?: RequestIdOptions,
+    ): Router {
+        registerRequestId(this.routes, method, path, options)
+        return this
+    }
+
+    timeout(
+        method: "*" | HttpMethodString,
+        path: string,
+        options: TimeoutOptions,
+    ): Router {
+        registerTimeout(this.routes, method, path, options)
+        return this
+    }
+
+    /**
+     * Create a route group with a common prefix path.
+     * All routes registered via the callback will be prefixed with the given path.
+     * @param prefix The prefix path for all routes in the group
+     * @param callback A function that receives the router to register routes on
+     * @returns The router, for chaining
+     */
+    group(prefix: string, callback: (router: Router) => void): Router {
+        const subRouter = new Router()
+        callback(subRouter)
+
+        for (const route of subRouter.routes) {
+            const mergedSplitPath = this.mergeSplitPaths(
+                splitRoutePath(prefix),
+                route.splitPath
+            )
+            this.routes.push({
+                ...route,
+                splitPath: mergedSplitPath,
+            })
+        }
+
+        return this
+    }
+
+    /**
+     * Mount a sub-router at the given path prefix.
+     * All routes from the sub-router will be registered with the prefix prepended.
+     * @param prefix The prefix path to mount the sub-router at
+     * @param subRouter The sub-router to mount
+     * @returns The router, for chaining
+     */
+    mount(prefix: string, subRouter: Router): Router {
+        for (const route of subRouter.routes) {
+            const mergedSplitPath = this.mergeSplitPaths(
+                splitRoutePath(prefix),
+                route.splitPath
+            )
+            this.routes.push({
+                ...route,
+                splitPath: mergedSplitPath,
+            })
+        }
+        return this
+    }
+
+    private mergeSplitPaths(
+        prefix: ReturnType<typeof splitRoutePath>,
+        suffix: ReturnType<typeof splitRoutePath>,
+    ): ReturnType<typeof splitRoutePath> {
+        if (!prefix && !suffix) {
+            return undefined
+        }
+        if (!prefix) {
+            return suffix
+        }
+        if (!suffix) {
+            return prefix
+        }
+        return [...prefix, ...suffix] as ReturnType<typeof splitRoutePath>
     }
 }
 

@@ -107,7 +107,7 @@ export function route(
         if (pathParams === false) {
             continue
         } else if (pathParams !== true) {
-            req.pathParams = pathParams
+            req.pathParams = pathParams as string[] | Record<string, string>
         }
 
         const p = routes[i].handler(req, res)
@@ -180,7 +180,7 @@ export async function routeAsync(
         if (pathParams === false) {
             continue
         } else if (pathParams !== true) {
-            req.pathParams = pathParams
+            req.pathParams = pathParams as string[] | Record<string, string>
         }
 
         const p = routes[i].handler(req, res)

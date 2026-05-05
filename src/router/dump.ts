@@ -5,6 +5,38 @@ import { isMergedRequestMiddleware, unmergeRequestMiddleware } from "../middlewa
 import { PATH_CHARS } from "../path"
 import type { RequestMiddleware, WebSocketData } from "../types"
 
+export interface RouteStats {
+    requestCount: number
+    totalTimeMs: number
+    avgTimeMs: number
+}
+
+const routeStats = new Map<string, RouteStats>()
+
+export function trackRouteTime(
+    method: string,
+    path: string,
+    timeMs: number,
+): void {
+    const key = `${method}:${path}`
+    let stats = routeStats.get(key)
+    if (!stats) {
+        stats = { requestCount: 0, totalTimeMs: 0, avgTimeMs: 0 }
+        routeStats.set(key, stats)
+    }
+    stats.requestCount++
+    stats.totalTimeMs += timeMs
+    stats.avgTimeMs = stats.totalTimeMs / stats.requestCount
+}
+
+export function getRouteStats(): Map<string, RouteStats> {
+    return routeStats
+}
+
+export function clearRouteStats(): void {
+    routeStats.clear()
+}
+
 /**
  * Creates a string tuple that contains the method, path and name of the middleware
  * @param route The route to generate the string for
@@ -108,6 +140,18 @@ export function dump(
         (a, b) => b[2].length - a[2].length
     )[0][2].length
 
+    const hasStats = routeStats.size > 0
+    let part4MinLen = 0
+    if (hasStats) {
+        for (const [, stats] of routeStats) {
+            const timeStr = stats.avgTimeMs.toFixed(2) + "ms"
+            if (timeStr.length > part4MinLen) {
+                part4MinLen = timeStr.length
+            }
+        }
+        part4MinLen = Math.max(part4MinLen, "Avg Time".length)
+    }
+
     const lines: string[] = []
 
     if (servers && servers.length != 0) {
@@ -123,15 +167,29 @@ export function dump(
         }
     }
 
+    const header = hasStats
+        ? `| ${"Method".padEnd(part1MinLen)} | ${"Path".padEnd(part2MinLen)} | ${"Handler".padEnd(part3MinLen)} | ${"Requests".padEnd(8)} | ${"Avg Time".padEnd(part4MinLen)} |`
+        : `| ${"Method".padEnd(part1MinLen)} | ${"Path".padEnd(part2MinLen)} | ${"Handler".padEnd(part3MinLen)} |`
+    const separator = hasStats
+        ? `| ${"-".repeat(part1MinLen)} | ${"-".repeat(part2MinLen)} | ${"-".repeat(part3MinLen)} | ${"-".repeat(8)} | ${"-".repeat(part4MinLen)} |`
+        : `| ${"-".repeat(part1MinLen)} | ${"-".repeat(part2MinLen)} | ${"-".repeat(part3MinLen)} |`
+
     lines.push(
         "",
         "# Defined endpoints:",
+        header,
+        separator,
         ...unmergedParts.map(
-            ([part1, part2, part3]): string =>
-                "| " + part1.padEnd(part1MinLen) +
-                " | " + part2.padEnd(part2MinLen) +
-                " | " + part3.padEnd(part3MinLen) +
-                " |"
+            ([part1, part2, part3]): string => {
+                if (hasStats) {
+                    const statsKey = `${part1}:${part2}`
+                    const stats = routeStats.get(statsKey)
+                    const reqCount = stats ? String(stats.requestCount).padEnd(8) : "0".padEnd(8)
+                    const avgTime = stats ? (stats.avgTimeMs.toFixed(2) + "ms").padEnd(part4MinLen) : "N/A".padEnd(part4MinLen)
+                    return `| ${part1.padEnd(part1MinLen)} | ${part2.padEnd(part2MinLen)} | ${part3.padEnd(part3MinLen)} | ${reqCount} | ${avgTime} |`
+                }
+                return `| ${part1.padEnd(part1MinLen)} | ${part2.padEnd(part2MinLen)} | ${part3.padEnd(part3MinLen)} |`
+            }
         ),
         "",
     )
@@ -139,12 +197,19 @@ export function dump(
     if (unmergedParts.length != mergedParts.length) {
         lines.push(
             "# Merged endpoints:",
+            header,
+            separator,
             ...mergedParts.map(
-                ([part1, part2, part3]): string =>
-                    "| " + part1.padEnd(part1MinLen) +
-                    " | " + part2.padEnd(part2MinLen) +
-                    " | " + part3.padEnd(part3MinLen) +
-                    " |"
+                ([part1, part2, part3]): string => {
+                    if (hasStats) {
+                        const statsKey = `${part1}:${part2}`
+                        const stats = routeStats.get(statsKey)
+                        const reqCount = stats ? String(stats.requestCount).padEnd(8) : "0".padEnd(8)
+                        const avgTime = stats ? (stats.avgTimeMs.toFixed(2) + "ms").padEnd(part4MinLen) : "N/A".padEnd(part4MinLen)
+                        return `| ${part1.padEnd(part1MinLen)} | ${part2.padEnd(part2MinLen)} | ${part3.padEnd(part3MinLen)} | ${reqCount} | ${avgTime} |`
+                    }
+                    return `| ${part1.padEnd(part1MinLen)} | ${part2.padEnd(part2MinLen)} | ${part3.padEnd(part3MinLen)} |`
+                }
             ),
             "",
         )

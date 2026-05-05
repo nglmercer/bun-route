@@ -10,13 +10,17 @@ export type WebSocketData = {
     channelId?: string;
     authToken?: string;
 } | undefined;
+export type PathParams = string[] | Record<string, string>
+
 export type Request = BunRequest & {
     /**
      * `req.pathParams` is the path parameters of the request.
-     * If a wildcard is used in the endpoint route,
-     * then it is available in a `Router` handled request.
+     * If a wildcard is used in the endpoint route, it is an array of matched segments.
+     * If named params (:param) are used, it is an object mapping param names to values.
+     * If both are used, named params take precedence in the returned object.
+     * Always available in a `Router` handled request when wildcards or named params are used.
      */
-    pathParams?: string[],
+    pathParams?: PathParams,
     /**
      * `req.httpMethod` is the HttpMethod enum value of the reuqest method used for routing.
      * It is always available in a `Router` handled request.
@@ -57,7 +61,15 @@ export type Request = BunRequest & {
     /**
      * `req.rid` is set to true if the request has been upgraded to a websocket.
      */
-    upgraded?: true
+    upgraded?: true,
+    /**
+     * `req.id` is the request ID set by the requestId middleware.
+     */
+    id?: string,
+    /**
+     * `req.parsedBody` is the parsed request body set by the bodyParser middleware.
+     */
+    parsedBody?: unknown
 }
 
 export type BunRequestHandler = (request: Request, server: Server<WebSocketData>) => Awaitable<Response>

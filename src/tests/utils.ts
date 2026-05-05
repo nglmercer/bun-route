@@ -13,7 +13,9 @@ type MockRequest = Request & {
     cookies: any;
     originCookies: any;
     upgraded?: true;        // ← `boolean` → `true` (literal type to match Bun's Request)
-    pathParams?: string[];
+    pathParams?: string[] | Record<string, string>;
+    id?: string;
+    parsedBody?: unknown;
 };
 
 /**

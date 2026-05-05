@@ -5,10 +5,13 @@ type BunBodyInit = BodyInit | import("bun").BunFile
 
 export const HTTP_STATUS = {
     OK: 200,
+    NO_CONTENT: 204,
     TEMPORARY_REDIRECT: 307,
     PERMANENT_REDIRECT: 308,
     UNAUTHORIZED: 401,
     NOT_FOUND: 404,
+    REQUEST_TIMEOUT: 408,
+    TOO_MANY_REQUESTS: 429,
     INTERNAL_SERVER_ERROR: 500,
 } as const
 

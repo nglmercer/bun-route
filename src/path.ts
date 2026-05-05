@@ -12,6 +12,14 @@ export const ROUTE_TOKENS = {
     DOUBLE_WILDCARD: "**",
 } as const
 
+export function isNamedParam(segment: string): boolean {
+    return segment.length > 1 && segment[0] === ":"
+}
+
+export function getNamedParamName(segment: string): string {
+    return segment.slice(1)
+}
+
 /**
  * Trims leading and trailing whitespace characters from a string.
  * @param {string} value - The input string to be trimmed.
@@ -119,8 +127,8 @@ export function splitRoutePath(path: string | undefined): SplitPath {
 
 /**
  * Checks if a requested splitpath matches the routes splitpath.
- * Also resolves single (*) and double (** wildcards.
- * `true` or wildcarded path parts are returned if found and match.
+ * Also resolves single (*) and double (** wildcards and :param named params.
+ * `true`, named params object, or wildcarded path parts are returned if found and match.
  * `false` is returned if not.
  * @param requestPath the path to check
  * @param routeSelector the route selector to check against
@@ -128,12 +136,12 @@ export function splitRoutePath(path: string | undefined): SplitPath {
 export function requestPathMatchesRouteDefinition(
     requestPath: SplitPath,
     routeSelector: SplitPath,
-): string[] | boolean {
+): string[] | Record<string, string> | boolean {
     if (
         requestPath == undefined &&
         routeSelector == undefined
     ) {
-        return []
+        return {}
     } else if (
         routeSelector == undefined
     ) {
@@ -162,32 +170,47 @@ export function requestPathMatchesRouteDefinition(
     }
 
     let pathParams: string[] | true = true
+    let namedParams: Record<string, string> | undefined
 
     for (let i = 0; i < routeSelector.length; i++) {
-        switch (routeSelector[i]) {
-            case ROUTE_TOKENS.WILDCARD:
-                if (requestPath.length <= i) {
-                    return false
-                }
-                if (pathParams === true) {
-                    pathParams = []
-                }
-                pathParams.push(requestPath[i])
-                break
-            case ROUTE_TOKENS.DOUBLE_WILDCARD:
-                if (requestPath.length - i > 0) {
+        const selector = routeSelector[i]
+        if (isNamedParam(selector)) {
+            if (requestPath.length <= i) {
+                return false
+            }
+            if (!namedParams) {
+                namedParams = {}
+            }
+            namedParams[getNamedParamName(selector)] = requestPath[i]
+        } else {
+            switch (selector) {
+                case ROUTE_TOKENS.WILDCARD:
+                    if (requestPath.length <= i) {
+                        return false
+                    }
                     if (pathParams === true) {
                         pathParams = []
                     }
-                    pathParams.push(...requestPath.slice(i))
-                }
-                return pathParams
-            case requestPath[i]:
-                break
-            default:
-                return false
-
+                    pathParams.push(requestPath[i])
+                    break
+                case ROUTE_TOKENS.DOUBLE_WILDCARD:
+                    if (requestPath.length - i > 0) {
+                        if (pathParams === true) {
+                            pathParams = []
+                        }
+                        pathParams.push(...requestPath.slice(i))
+                    }
+                    return pathParams
+                case requestPath[i]:
+                    break
+                default:
+                    return false
+            }
         }
+    }
+
+    if (namedParams) {
+        return namedParams
     }
 
     return pathParams

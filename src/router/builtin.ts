@@ -6,6 +6,12 @@ import { PATH_CHARS } from "../path"
 import { HTTP_STATUS, HTTP_HEADERS, RESPONSE_DEFAULTS } from "../responseBuilder"
 import type { EndpointRoute, RequestMiddleware, WebSocketData } from "../types"
 
+function generateETag(buffer: ArrayBuffer): string {
+    const hash = new Bun.CryptoHasher("md5")
+    hash.update(buffer)
+    return `"${hash.digest("hex")}"`
+}
+
 /**
  * Upgrade a request to a websocket connection.
  * @param routes The routes array to add to
@@ -98,6 +104,9 @@ export function staticFiles(
             if (req.pathParams !== undefined) {
                 if (Array.isArray(req.pathParams)) {
                     relativeParts = req.pathParams
+                } else if (typeof req.pathParams === "object") {
+                    // Named params - find the wildcard-captured segment or use all values
+                    relativeParts = Object.values(req.pathParams)
                 } else if (req.pathParams === true) {
                     // Double wildcard matched - use splitPath parts after route
                     relativeParts = req.splitPath ? req.splitPath.slice(1) : []
@@ -122,7 +131,19 @@ export function staticFiles(
                 const file = Bun.file(targetPath)
                 return file.exists().then(async (exist) => {
                     if (exist) {
-                        res.send(file)
+                        const buffer = await file.arrayBuffer()
+                        const etag = generateETag(buffer)
+                        const ifNoneMatch = req.headers.get("if-none-match")
+
+                        if (ifNoneMatch && ifNoneMatch === etag) {
+                            res.status(304).send()
+                            return
+                        }
+
+                        res.setHeader("ETag", etag)
+                        res.setHeader("Cache-Control", "public, max-age=0")
+                        res.setHeader("Content-Type", file.type || "application/octet-stream")
+                        res.send(buffer)
                     } else {
                         res.status(HTTP_STATUS.NOT_FOUND)
                     }

@@ -80,7 +80,7 @@ export function registerUploadRoutes(router: Router): void {
   router.delete("/api/files/*", (req: Request, res: ResponseBuilder) => {
     if (!requireAuth(req, res)) return;
 
-    const filename = req.pathParams?.[0] || "";
+    const filename = (req.pathParams as string[])?.[0] || "";
     const filepath = join(UPLOAD_DIR, filename);
 
     if (!existsSync(filepath)) {
