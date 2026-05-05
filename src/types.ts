@@ -9,7 +9,7 @@ export type WebSocketData = {
     createdAt: number;
     channelId?: string;
     authToken?: string;
-};
+} | undefined;
 export type Request = BunRequest & {
     /**
      * `req.pathParams` is the path parameters of the request.

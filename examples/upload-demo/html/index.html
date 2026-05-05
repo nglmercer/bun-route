@@ -4,45 +4,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload Demo</title>
+    <title>Chat & Upload Demo</title>
     <link rel="stylesheet" href="./css/style.css">
 </head>
 
 <body>
     <div id="app">
         <div id="login-view" class="view">
-            <h1>Login</h1>
-            <form id="login-form">
-                <input type="text" id="username" placeholder="Username" required>
-                <input type="password" id="password" placeholder="Password" required>
-                <button type="submit">Login</button>
-            </form>
-            <p>Demo credentials: admin / password123</p>
-            <div id="login-error" class="error"></div>
+            <div class="login-container">
+                <h1>Chat & Upload Demo</h1>
+                <form id="login-form">
+                    <input type="text" id="username" placeholder="Username" required>
+                    <input type="password" id="password" placeholder="Password" required>
+                    <button type="submit">Login</button>
+                </form>
+                <p>Demo credentials: <code>admin / password123</code> or <code>user / test456</code></p>
+                <div id="login-error" class="error"></div>
+            </div>
         </div>
 
         <div id="main-view" class="view" style="display:none;">
             <header>
-                <h1>File Upload Demo</h1>
-                <button id="logout-btn">Logout</button>
+                <h1>Chat Room</h1>
+                <div class="header-info">
+                    <span id="online-count">0 online</span>
+                    <button id="logout-btn">Logout</button>
+                </div>
             </header>
 
-            <div class="upload-section">
-                <h2>Upload File</h2>
-                <form id="upload-form">
-                    <input type="file" id="file-input" required>
-                    <button type="submit">Upload</button>
-                </form>
-                <div id="upload-progress" class="progress" style="display:none;">
-                    <div id="progress-bar"></div>
-                </div>
-                <div id="upload-status"></div>
-            </div>
+            <div class="main-container">
+                <div class="chat-section">
+                    <div id="messages-container">
+                        <div id="messages"></div>
+                    </div>
 
-            <div class="files-section">
-                <h2>Uploaded Files</h2>
-                <button id="refresh-btn">Refresh</button>
-                <div id="files-list"></div>
+                    <div class="chat-input-section">
+                        <div id="upload-preview" style="display:none;">
+                            <div id="preview-content"></div>
+                            <button id="cancel-upload">Cancel</button>
+                        </div>
+
+                        <div class="chat-input-bar">
+                            <button id="attach-btn" title="Attach file">📎</button>
+                            <input type="file" id="file-input" style="display:none;" accept="image/*,*/*">
+                            <input type="text" id="message-input" placeholder="Type a message...">
+                            <button id="send-btn">Send</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar">
+                    <div class="online-users">
+                        <h3>Online Users</h3>
+                        <div id="online-users-list"></div>
+                    </div>
+
+                    <div class="assets-section">
+                        <h3>Uploaded Assets</h3>
+                        <button id="refresh-files">Refresh</button>
+                        <div id="files-list"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -50,6 +72,9 @@
     <script>
         const API_BASE = '';
         let authToken = localStorage.getItem('authToken');
+        let currentUser = null;
+        let ws = null;
+        let selectedFile = null;
 
         function showView(viewId) {
             document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
@@ -62,7 +87,12 @@
                 const res = await fetch('/api/me', {
                     headers: { 'Authorization': 'Bearer ' + authToken }
                 });
-                return res.ok;
+                if (res.ok) {
+                    const data = await res.json();
+                    currentUser = data.username;
+                    return true;
+                }
+                return false;
             } catch {
                 return false;
             }
@@ -77,6 +107,7 @@
             if (res.ok) {
                 const data = await res.json();
                 authToken = data.token;
+                currentUser = data.username;
                 localStorage.setItem('authToken', authToken);
                 return true;
             }
@@ -85,44 +116,167 @@
 
         function logout() {
             authToken = null;
+            currentUser = null;
             localStorage.removeItem('authToken');
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
             showView('login-view');
+        }
+
+        function connectWebSocket() {
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${location.host}/chat`);
+
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ type: 'auth', token: authToken }));
+            };
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+
+            ws.onclose = () => {
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function handleWebSocketMessage(data) {
+            if (data.type === 'auth_success') {
+                updateOnlineUsers(data.onlineUsers);
+            } else if (data.type === 'message') {
+                appendMessage(data.message);
+                scrollToBottom();
+            } else if (data.type === 'message_history') {
+                displayMessageHistory(data.messages);
+            } else if (data.type === 'user_joined') {
+                updateOnlineUsers(data.onlineUsers);
+            } else if (data.type === 'user_left') {
+                updateOnlineUsers(data.onlineUsers);
+            } else if (data.type === 'error') {
+                console.error('WebSocket error:', data.message);
+            }
+        }
+
+        function appendMessage(msg) {
+            const container = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = `message ${msg.username === currentUser ? 'own' : ''}`;
+
+            const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            let contentHtml = '';
+            if (msg.type === 'text') {
+                contentHtml = `<div class="message-content">${escapeHtml(msg.content)}</div>`;
+            } else if (msg.type === 'image') {
+                contentHtml = `<div class="message-content">
+                    <img src="/uploads/${msg.filename}" alt="${escapeHtml(msg.content)}" class="chat-image">
+                    <div class="image-caption">${escapeHtml(msg.content)}</div>
+                </div>`;
+            } else if (msg.type === 'file') {
+                contentHtml = `<div class="message-content">
+                    <a href="/uploads/${msg.filename}" target="_blank" class="file-link">📄 ${escapeHtml(msg.content)}</a>
+                </div>`;
+            }
+
+            div.innerHTML = `
+                <div class="message-header">
+                    <span class="username">${escapeHtml(msg.username)}</span>
+                    <span class="timestamp">${time}</span>
+                </div>
+                ${contentHtml}
+            `;
+
+            container.appendChild(div);
+        }
+
+        function displayMessageHistory(messages) {
+            const container = document.getElementById('messages');
+            container.innerHTML = '';
+            messages.forEach(appendMessage);
+            scrollToBottom();
+        }
+
+        function updateOnlineUsers(users) {
+            document.getElementById('online-count').textContent = `${users.length} online`;
+            const list = document.getElementById('online-users-list');
+            list.innerHTML = users.map(u => `<div class="online-user">${escapeHtml(u.username)}</div>`).join('');
+        }
+
+        function scrollToBottom() {
+            const container = document.getElementById('messages-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
         }
 
         async function uploadFile(file) {
             const formData = new FormData();
             formData.append('file', file);
 
-            const xhr = new XMLHttpRequest();
-            const progress = document.getElementById('upload-progress');
-            const progressBar = document.getElementById('progress-bar');
-            const status = document.getElementById('upload-status');
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + authToken },
+                body: formData
+            });
 
-            progress.style.display = 'block';
-            status.textContent = '';
+            if (res.ok) {
+                const data = await res.json();
+                return data.file;
+            }
+            throw new Error('Upload failed');
+        }
 
-            xhr.upload.onprogress = (e) => {
-                if (e.lengthComputable) {
-                    const percent = (e.loaded / e.total) * 100;
-                    progressBar.style.width = percent + '%';
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+
+            if (!text && !selectedFile) return;
+
+            if (selectedFile) {
+                try {
+                    const fileInfo = await uploadFile(selectedFile);
+                    if (selectedFile.type.startsWith('image/')) {
+                        ws.send(JSON.stringify({
+                            type: 'chat_image',
+                            content: text || fileInfo.name,
+                            filename: fileInfo.name
+                        }));
+                    } else {
+                        ws.send(JSON.stringify({
+                            type: 'chat_file',
+                            content: text || fileInfo.name,
+                            filename: fileInfo.name
+                        }));
+                    }
+                    clearFileSelection();
+                } catch (err) {
+                    alert('Upload failed: ' + err.message);
                 }
-            };
+            } else if (text) {
+                ws.send(JSON.stringify({ type: 'chat', content: text }));
+            }
 
-            xhr.onload = () => {
-                progress.style.display = 'none';
-                if (xhr.status === 200) {
-                    status.textContent = 'Upload successful!';
-                    status.className = 'success';
-                    loadFiles();
-                } else {
-                    status.textContent = 'Upload failed: ' + xhr.responseText;
-                    status.className = 'error';
-                }
-            };
+            input.value = '';
+        }
 
-            xhr.open('POST', '/api/upload');
-            xhr.setRequestHeader('Authorization', 'Bearer ' + authToken);
-            xhr.send(formData);
+        function clearFileSelection() {
+            selectedFile = null;
+            document.getElementById('upload-preview').style.display = 'none';
+            document.getElementById('preview-content').innerHTML = '';
+            document.getElementById('file-input').value = '';
         }
 
         async function loadFiles() {
@@ -135,15 +289,18 @@
                 if (files.length === 0) {
                     list.innerHTML = '<p>No files uploaded yet.</p>';
                 } else {
-                    list.innerHTML = files.map(f => `
-                        <div class="file-item">
-                            <span class="file-name">${f.name}</span>
-                            <span class="file-size">${formatSize(f.size)}</span>
-                            <span class="file-date">${new Date(f.uploadedAt).toLocaleString()}</span>
-                            <a href="/uploads/${f.name}" target="_blank" class="file-download">Download</a>
-                            <button class="file-delete" onclick="deleteFile('${f.name}')">Delete</button>
-                        </div>
-                    `).join('');
+                    list.innerHTML = files.map(f => {
+                        const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(f.name);
+                        return `
+                            <div class="file-item">
+                                ${isImage ? `<img src="/uploads/${f.name}" alt="${f.name}" class="file-thumb">` : '📄'}
+                                <span class="file-name">${f.name}</span>
+                                <span class="file-size">${formatSize(f.size)}</span>
+                                <a href="/uploads/${f.name}" target="_blank">View</a>
+                                <button onclick="deleteFile('${f.name}')">Delete</button>
+                            </div>
+                        `;
+                    }).join('');
                 }
             }
         }
@@ -157,12 +314,6 @@
             if (res.ok) loadFiles();
         }
 
-        function formatSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-        }
-
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value;
@@ -170,6 +321,7 @@
             const error = document.getElementById('login-error');
             if (await login(username, password)) {
                 showView('main-view');
+                connectWebSocket();
                 loadFiles();
             } else {
                 error.textContent = 'Invalid credentials';
@@ -178,17 +330,49 @@
 
         document.getElementById('logout-btn').onclick = logout;
 
-        document.getElementById('upload-form').onsubmit = (e) => {
-            e.preventDefault();
-            const file = document.getElementById('file-input').files[0];
-            if (file) uploadFile(file);
+        document.getElementById('send-btn').onclick = sendMessage;
+
+        document.getElementById('message-input').onkeypress = (e) => {
+            if (e.key === 'Enter') sendMessage();
         };
 
-        document.getElementById('refresh-btn').onclick = loadFiles;
+        document.getElementById('attach-btn').onclick = () => {
+            document.getElementById('file-input').click();
+        };
+
+        document.getElementById('file-input').onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            selectedFile = file;
+            const preview = document.getElementById('upload-preview');
+            const content = document.getElementById('preview-content');
+
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    content.innerHTML = `<img src="${ev.target.result}" alt="Preview" class="preview-image">`;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                content.innerHTML = `<div class="file-info">📄 ${file.name} (${formatSize(file.size)})</div>`;
+                preview.style.display = 'block';
+            }
+        };
+
+        document.getElementById('cancel-upload').onclick = clearFileSelection;
+
+        document.getElementById('refresh-files').onclick = loadFiles;
 
         checkAuth().then(authed => {
-            showView(authed ? 'main-view' : 'login-view');
-            if (authed) loadFiles();
+            if (authed) {
+                showView('main-view');
+                connectWebSocket();
+                loadFiles();
+            } else {
+                showView('login-view');
+            }
         });
     </script>
 </body>
