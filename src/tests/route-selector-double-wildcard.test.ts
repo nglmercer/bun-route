@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { requestPathMatchesRouteDefinition } from ".";
+import { requestPathMatchesRouteDefinition } from "..";
 
 describe("requestPathMatchesRouteDefinition with double wildcards", () => {
   it("undefined on double wildcard should result in true", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { Router } from ".";
+import { Router } from "..";
 
 function avarage(array: number[]) {
   return array.reduce((a, b) => a + b, 0)

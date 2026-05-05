@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { requestPathMatchesRouteDefinition } from ".";
+import { requestPathMatchesRouteDefinition } from "..";
 
 describe("requestPathMatchesRouteDefinition without wildcards", () => {
   it("undefined + undefined should result in []", () => {

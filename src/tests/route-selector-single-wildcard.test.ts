@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { requestPathMatchesRouteDefinition } from ".";
+import { requestPathMatchesRouteDefinition } from "..";
 
 describe("requestPathMatchesRouteDefinition with single wildcards", () => {
   it('2 parts on 1 parts with single wildcard should result in true with ["hello"]', () => {

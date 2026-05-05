@@ -1,5 +1,5 @@
 import { describe, expect, it, } from "bun:test";
-import { requestPathMatchesRouteDefinition } from ".";
+import { requestPathMatchesRouteDefinition } from "..";
 
 describe("requestPathMatchesRouteDefinition with mixed wildcards", () => {
   it('root on min 1 part', () => {

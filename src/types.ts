@@ -1,4 +1,4 @@
-import { type Server, type SocketAddress } from "bun"
+import { type Server, type SocketAddress, type WebSocketData } from "bun"
 import { type HttpMethod } from "./method"
 import { BunRequest } from "./request"
 import type { ResponseBuilder } from "./responseBuilder"

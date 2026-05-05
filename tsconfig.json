@@ -4,18 +4,18 @@
     "module": "ESNEXT",
     "strict": true,
     "esModuleInterop": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "noUnusedLocals": true,
     "noImplicitAny": true,
     "allowJs": true,
     "noEmit": true,
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": "./src",
     "resolveJsonModule": true
   },
   "include": [
-    "src/**/*.ts",
+    "src/**/*.ts"
   ],
   "exclude": [
     "dist",

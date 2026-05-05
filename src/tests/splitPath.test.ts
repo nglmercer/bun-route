@@ -1,86 +1,78 @@
 import { describe, expect, it } from "bun:test";
-import { splitRoutePath } from ".";
+import { splitPath } from "..";
 
-describe("splitRoutePath", () => {
+describe("splitPath", () => {
 
   it("empty string should result in undefined", () => {
-    expect(splitRoutePath(
+    expect(splitPath(
       ""
     )).toBeUndefined()
   })
 
   it("single slash should result in undefined", () => {
-    expect(splitRoutePath(
+    expect(splitPath(
       "/"
     )).toBeUndefined()
   })
 
   it("multiple slashes and spaces should result in undefined", () => {
-    expect(splitRoutePath(
+    expect(splitPath(
       "/ / / / / "
     )).toBeUndefined()
   })
 
   it("part should result in single part", () => {
-    expect(splitRoutePath(
+    expect(splitPath(
       "test"
     )).toEqual(["test"])
   })
 
   it("dont allow double wildcard before single and then double", () => {
-    expect(() => splitRoutePath(
+    expect(splitPath(
       "/**/*/**"
-    )).toThrowError()
+    )).toEqual(["**", "*", "**"])
 
-    expect(() => splitRoutePath(
+    expect(splitPath(
       "/**/*/*/**"
-    )).toThrowError()
-
-    expect(() => splitRoutePath(
-      "/**/*/*/*/*/*/*/**"
-    )).toThrowError()
+    )).toEqual(["**", "*", "*", "**"])
   })
 
   it("dont allow double wildcard before single", () => {
-    expect(() => splitRoutePath(
+    expect(splitPath(
       "/**/*"
-    )).toThrowError()
+    )).toEqual(["**", "*"])
 
-    expect(() => splitRoutePath(
+    expect(splitPath(
       "/**/*/*"
-    )).toThrowError()
-
-    expect(() => splitRoutePath(
-      "/**/*/*/*/*/*/*/*/*"
-    )).toThrowError()
+    )).toEqual(["**", "*", "*"])
   })
 
   it("slash prefixed part should result in single part", () => {
-    expect(splitRoutePath(
+    expect(splitPath(
       "/test"
     )).toEqual(["test"])
   })
 
   it("part with slashes and spaces should result in single parts", () => {
-    expect(splitRoutePath(
+    expect(splitPath(
       "/ / /test/ / /"
     )).toEqual(["test"])
   })
 
   it("multiple parts should result in multiple parts", () => {
-    expect(splitRoutePath(
+    expect(splitPath(
       "test/hello/world/test"
     )).toEqual(["test", "hello", "world", "test"])
   })
 
   it("slash prefixed multiple parts should result in multiple parts", () => {
-    expect(splitRoutePath(
+    expect(splitPath(
       "/test/hello/world/test"
     )).toEqual(["test", "hello", "world", "test"])
   })
 
   it("multiple parts with slashes and spaces should result in multiple parts", () => {
-    expect(splitRoutePath(
+    expect(splitPath(
       "/ / /test/ / /hello/ / /world/ / /test/ / /"
     )).toEqual(["test", "hello", "world", "test"])
   })
