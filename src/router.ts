@@ -52,6 +52,7 @@ import {
 export class Router {
     routes: EndpointRoute[] = []
     mergeHandlers: boolean = true
+    private wsHandlers?: Bun.WebSocketHandler<WebSocketData>
 
     // Expose cookie methods as static
     static parseCookies = parseCookies
@@ -96,9 +97,9 @@ export class Router {
      * @param options RequestInit options if the first param is a string.
      * @returns A promise of the Response object returned by the handler.
      */
-    request(request: Request | string, options?: RequestInit): Promise<Response> {
-        const req = typeof request === "string" ? new Request(request, options) : request;
-        const res = this.handle(req as Request, {
+    request(request: globalThis.Request | string, options?: RequestInit): Promise<Response> {
+        const req = typeof request === "string" ? new globalThis.Request(request, options) : request;
+        const res = this.handle(req as unknown as Request, {
             requestIP: () => ({ address: "127.0.0.1", family: "IPv4", port: 0 })
         } as unknown as Server<WebSocketData>);
         return Promise.resolve(res as Response);
@@ -271,6 +272,24 @@ export class Router {
     ws(path: string): Router {
         registerWs(this.routes, path)
         return this
+    }
+
+    /**
+     * Set the WebSocket handlers for Bun.serve.
+     * @param handlers The WebSocket handlers.
+     * @returns The router, for chaining.
+     */
+    setWebSocketHandlers(handlers: Bun.WebSocketHandler<WebSocketData>): Router {
+        this.wsHandlers = handlers
+        return this
+    }
+
+    /**
+     * Get the WebSocket handlers for Bun.serve.
+     * @returns The WebSocket handlers, or undefined if not set.
+     */
+    getWebSocketHandlers(): Bun.WebSocketHandler<WebSocketData> | undefined {
+        return this.wsHandlers
     }
 
     redirect(

@@ -9,7 +9,7 @@ describe("dump.getDefinitionString", () => {
     const route: EndpointRoute = {
       splitPath: splitRoutePath("/test"),
       method: parseHttpMethods("GET"),
-      handler: function testHandler() {}
+      handler: function testHandler() { }
     };
     const [method, path, name] = getDefinitionString(route, route.handler, false);
     expect(method).toBe("GET");
@@ -21,14 +21,14 @@ describe("dump.getDefinitionString", () => {
     const route: EndpointRoute = {
       splitPath: splitRoutePath("/test"),
       method: parseHttpMethods("GET"),
-      handler: () => {}
+      handler: () => { }
     };
     const [method] = getDefinitionString(route, route.handler, true);
     expect(method).toBe("^ (M)");
   });
 
   it("shows [anonym] for anonymous handlers without prototype name", () => {
-    const handler = () => {};
+    const handler = () => { };
     Object.defineProperty(handler, "name", { value: "" });
     Object.defineProperty(handler, "prototype", { value: {} });
     const route: EndpointRoute = {
@@ -44,7 +44,7 @@ describe("dump.getDefinitionString", () => {
     const route: EndpointRoute = {
       splitPath: undefined,
       method: parseHttpMethods("GET"),
-      handler: () => {}
+      handler: () => { }
     };
     const [, path] = getDefinitionString(route, route.handler, false);
     expect(path).toBe("/");
@@ -55,14 +55,14 @@ describe("dump.getDefinitionString", () => {
     const route: EndpointRoute = {
       splitPath: undefined,
       method: parseHttpMethods("GET"),
-      handler: mergeRequestMiddlewares(() => {}, () => {})
+      handler: mergeRequestMiddlewares(() => { }, () => { })
     };
     const [, , name] = getDefinitionString(route, route.handler, false);
     expect(name).toBe("[merged]");
   });
 
   it("shows prototype name if handler name is empty", () => {
-    const handler = () => {};
+    const handler = () => { };
     Object.defineProperty(handler, "name", { value: "" });
     Object.defineProperty(handler, "prototype", { value: { name: "ProtoName" } });
     const route: EndpointRoute = {
@@ -84,7 +84,7 @@ describe("dump.dump", () => {
     const routes: EndpointRoute[] = [{
       splitPath: splitRoutePath("/test"),
       method: parseHttpMethods("GET"),
-      handler: function testHandler() {}
+      handler: function testHandler() { }
     }];
     const result = dump(routes);
     expect(result).toContain("Defined endpoints:");
@@ -97,7 +97,7 @@ describe("dump.dump", () => {
     const routes: EndpointRoute[] = [{
       splitPath: splitRoutePath("/test"),
       method: parseHttpMethods("GET"),
-      handler: () => {}
+      handler: () => { }
     }];
     const mockServer = { url: "http://localhost:3000" } as any;
     const result = dump(routes, mockServer);
@@ -108,8 +108,9 @@ describe("dump.dump", () => {
     const routes: EndpointRoute[] = [{
       splitPath: splitRoutePath("/test"),
       method: parseHttpMethods("GET"),
-      handler: () => {}
+      handler: () => { }
     }];
+
     const mockServer1 = { url: "http://localhost:3000" } as any;
     const mockServer2 = { url: "http://localhost:3001" } as any;
     const result = dump(routes, mockServer1, mockServer2);
@@ -123,7 +124,7 @@ describe("dump.dump", () => {
     const routes: EndpointRoute[] = [{
       splitPath: splitRoutePath("/test"),
       method: parseHttpMethods("GET"),
-      handler: mergeRequestMiddlewares(() => {}, () => {})
+      handler: mergeRequestMiddlewares(() => { }, () => { })
     }];
     const result = dump(routes);
     expect(result).toContain("Merged endpoints:");

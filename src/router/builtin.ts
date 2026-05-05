@@ -22,7 +22,7 @@ export function ws(
             createdAt: createdAt,
             channelId: crypto.randomUUID()
         }
-        if (req.server.upgrade(req, { data: data })) { //TODO: fix bun/node type errors
+        if (req.server.upgrade(req, { data: data })) {
             req.upgraded = true
         }
     }

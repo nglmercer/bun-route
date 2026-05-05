@@ -27,6 +27,10 @@ registerAuthRoutes(router)
 registerUploadRoutes(router)
 registerChatRoutes(router)
 
+// Register WebSocket path and handlers
+router.ws("/chat")
+router.setWebSocketHandlers(getWebSocketHandlers())
+
 // Serve static files
 router.static("/css/**", import.meta.dir + "/css")
 router.static("/html/**", import.meta.dir + "/html")
@@ -50,20 +54,9 @@ router.get("/api/info", (_: Request, res: ResponseBuilder) => {
 
 // Start server with WebSocket support
 export const server = Bun.serve({
-    fetch(req: Request, server) {
-        const url = new URL(req.url || "", `http://${req.headers.get("host") || "localhost"}`)
-
-        // Handle WebSocket upgrade for /chat path
-        if (url.pathname === "/chat") {
-            const upgraded = server.upgrade(req)
-            if (upgraded) return
-        }
-
-        // Otherwise use the router
-        return router.handle(req, server)
-    },
+    fetch: router.handle,
     port: 3004,
-    websocket: getWebSocketHandlers()
+    websocket: router.getWebSocketHandlers()!
 })
 
 console.info(router.dump(server))

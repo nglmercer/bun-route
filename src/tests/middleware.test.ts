@@ -3,14 +3,14 @@ import { mergeRequestMiddlewares, unmergeRequestMiddleware, isMergedRequestMiddl
 import type { Request, EndpointRoute } from "../types"
 import { ResponseBuilder } from "../responseBuilder"
 import { HttpMethod } from "../method"
-
+import { createMockReq, createMockRes } from "./utils"
 describe("mergeRequestMiddlewares", () => {
   test("throws when no middlewares", () => {
     expect(() => mergeRequestMiddlewares()).toThrow("no middlewares specified")
   })
 
   test("returns single middleware when only one", () => {
-    const mw = (req: Request, res: ResponseBuilder) => {}
+    const mw = (req: Request, res: ResponseBuilder) => { }
     const result = mergeRequestMiddlewares(mw)
     expect(result).toBe(mw)
   })
@@ -21,24 +21,27 @@ describe("mergeRequestMiddlewares", () => {
     const mw2 = (req: Request, res: ResponseBuilder) => { order.push(2) }
     const merged = mergeRequestMiddlewares(mw1, mw2)
     merged({} as Request, {} as ResponseBuilder)
-    expect(order).toEqual([1,2])
+    expect(order).toEqual([1, 2])
   })
 
   test("stops sync middlewares when res.submit is true", () => {
     const order: number[] = []
-    const mw1 = (req: Request, res: ResponseBuilder) => { order.push(1); (res as any).submit = true }
+    const mw1 = (req: Request, res: ResponseBuilder) => { order.push(1); res.submit = true }
     const mw2 = (req: Request, res: ResponseBuilder) => { order.push(2) }
     const merged = mergeRequestMiddlewares(mw1, mw2)
-    merged({} as Request, { submit: false } as any as ResponseBuilder)
+    const res = createMockRes()
+    merged({} as Request, res)
     expect(order).toEqual([1])
   })
 
   test("stops sync middlewares when req.upgraded is true", () => {
     const order: number[] = []
-    const mw1 = (req: Request, res: ResponseBuilder) => { order.push(1); (req as any).upgraded = true }
+    const req = createMockReq()
+    req.upgraded = true
+    const mw1 = (req: Request, res: ResponseBuilder) => { order.push(1); req.upgraded = true }
     const mw2 = (req: Request, res: ResponseBuilder) => { order.push(2) }
     const merged = mergeRequestMiddlewares(mw1, mw2)
-    merged({ upgraded: false } as any as Request, {} as ResponseBuilder)
+    merged(req, createMockRes())
     expect(order).toEqual([1])
   })
 
@@ -51,26 +54,29 @@ describe("mergeRequestMiddlewares", () => {
     const mw2 = (req: Request, res: ResponseBuilder) => { order.push(3) }
     const merged = mergeRequestMiddlewares(mw1, mw2)
     await merged({} as Request, {} as ResponseBuilder)
-    expect(order).toEqual([1,2,3])
+    expect(order).toEqual([1, 2, 3])
   })
 
   test("stops async middlewares when res.submit is true after await", async () => {
     const order: number[] = []
     const mw1 = (req: Request, res: ResponseBuilder) => {
       order.push(1)
-      return new Promise<void>(resolve => setTimeout(() => { (res as any).submit = true; order.push(2); resolve() }, 10))
+      const res2 = createMockRes()
+      res2.submit = true
+      return new Promise<void>(resolve => setTimeout(() => { res.submit = true; order.push(2); resolve() }, 10))
     }
     const mw2 = (req: Request, res: ResponseBuilder) => { order.push(3) }
     const merged = mergeRequestMiddlewares(mw1, mw2)
-    await merged({} as Request, { submit: false } as any as ResponseBuilder)
-    expect(order).toEqual([1,2])
+    const res = createMockRes()
+    await merged({} as Request, res)
+    expect(order).toEqual([1, 2])
   })
 })
 
 describe("unmergeRequestMiddleware", () => {
   test("unmerges merged middleware", () => {
-    const mw1 = (req: Request, res: ResponseBuilder) => {}
-    const mw2 = (req: Request, res: ResponseBuilder) => {}
+    const mw1 = (req: Request, res: ResponseBuilder) => { }
+    const mw2 = (req: Request, res: ResponseBuilder) => { }
     const merged = mergeRequestMiddlewares(mw1, mw2)
     const unmerged = unmergeRequestMiddleware(merged)
     expect(unmerged).toEqual([mw1, mw2])
@@ -79,20 +85,20 @@ describe("unmergeRequestMiddleware", () => {
 
 describe("isMergedRequestMiddleware", () => {
   test("returns true for merged middleware", () => {
-    const mw1 = (req: Request, res: ResponseBuilder) => {}
-    const mw2 = (req: Request, res: ResponseBuilder) => {}
+    const mw1 = (req: Request, res: ResponseBuilder) => { }
+    const mw2 = (req: Request, res: ResponseBuilder) => { }
     const merged = mergeRequestMiddlewares(mw1, mw2)
     expect(isMergedRequestMiddleware(merged)).toBe(true)
   })
 
   test("returns false for normal middleware", () => {
-    const mw = (req: Request, res: ResponseBuilder) => {}
+    const mw = (req: Request, res: ResponseBuilder) => { }
     expect(isMergedRequestMiddleware(mw)).toBe(false)
   })
 })
 
 describe("isMergeableEndpointRoute", () => {
-  const emptyHandler = () => {}
+  const emptyHandler = () => { }
   test("returns false for different methods", () => {
     const route1 = { method: HttpMethod.GET, splitPath: undefined, handler: emptyHandler } as EndpointRoute
     const route2 = { method: HttpMethod.POST, splitPath: undefined, handler: emptyHandler } as EndpointRoute
