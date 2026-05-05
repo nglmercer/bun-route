@@ -93,12 +93,18 @@ export function staticFiles(
                 return
             }
 
-            let targetPath = join(
-                targetDir,
-                req.splitPath == undefined ?
-                    PATH_CHARS.SLASH :
-                    req.path
-            )
+            // Compute relative path from route match
+            let relativeParts: string[] = []
+            if (req.pathParams !== undefined) {
+                if (Array.isArray(req.pathParams)) {
+                    relativeParts = req.pathParams
+                } else if (req.pathParams === true) {
+                    // Double wildcard matched - use splitPath parts after route
+                    relativeParts = req.splitPath ? req.splitPath.slice(1) : []
+                }
+            }
+
+            let targetPath = join(targetDir, ...relativeParts)
 
             if (targetPath.endsWith(PATH_CHARS.SLASH)) {
                 targetPath += indexFile

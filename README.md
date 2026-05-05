@@ -93,6 +93,7 @@ Checkout the bun-route [examples](https://github.com/NobleMajo/bun-route/tree/ma
 - [redirect example](https://github.com/NobleMajo/bun-route/blob/main/examples/redirect.ts)
 - [cookies example](https://github.com/NobleMajo/bun-route/blob/main/examples/cookies.ts)
 - [basic auth example](https://github.com/NobleMajo/bun-route/blob/main/examples/basic-auth.ts)
+- [upload demo example](https://github.com/NobleMajo/bun-route/blob/main/examples/upload-demo/server.ts) (with auth, file upload, and file viewing)
 
 Run a example:
 ```sh

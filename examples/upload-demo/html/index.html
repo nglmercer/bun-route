@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Demo</title>
+    <link rel="stylesheet" href="./css/style.css">
+</head>
+
+<body>
+    <div id="app">
+        <div id="login-view" class="view">
+            <h1>Login</h1>
+            <form id="login-form">
+                <input type="text" id="username" placeholder="Username" required>
+                <input type="password" id="password" placeholder="Password" required>
+                <button type="submit">Login</button>
+            </form>
+            <p>Demo credentials: admin / password123</p>
+            <div id="login-error" class="error"></div>
+        </div>
+
+        <div id="main-view" class="view" style="display:none;">
+            <header>
+                <h1>File Upload Demo</h1>
+                <button id="logout-btn">Logout</button>
+            </header>
+
+            <div class="upload-section">
+                <h2>Upload File</h2>
+                <form id="upload-form">
+                    <input type="file" id="file-input" required>
+                    <button type="submit">Upload</button>
+                </form>
+                <div id="upload-progress" class="progress" style="display:none;">
+                    <div id="progress-bar"></div>
+                </div>
+                <div id="upload-status"></div>
+            </div>
+
+            <div class="files-section">
+                <h2>Uploaded Files</h2>
+                <button id="refresh-btn">Refresh</button>
+                <div id="files-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+        let authToken = localStorage.getItem('authToken');
+
+        function showView(viewId) {
+            document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+            document.getElementById(viewId).style.display = 'block';
+        }
+
+        async function checkAuth() {
+            if (!authToken) return false;
+            try {
+                const res = await fetch('/api/me', {
+                    headers: { 'Authorization': 'Bearer ' + authToken }
+                });
+                return res.ok;
+            } catch {
+                return false;
+            }
+        }
+
+        async function login(username, password) {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                authToken = data.token;
+                localStorage.setItem('authToken', authToken);
+                return true;
+            }
+            return false;
+        }
+
+        function logout() {
+            authToken = null;
+            localStorage.removeItem('authToken');
+            showView('login-view');
+        }
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const xhr = new XMLHttpRequest();
+            const progress = document.getElementById('upload-progress');
+            const progressBar = document.getElementById('progress-bar');
+            const status = document.getElementById('upload-status');
+
+            progress.style.display = 'block';
+            status.textContent = '';
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = (e.loaded / e.total) * 100;
+                    progressBar.style.width = percent + '%';
+                }
+            };
+
+            xhr.onload = () => {
+                progress.style.display = 'none';
+                if (xhr.status === 200) {
+                    status.textContent = 'Upload successful!';
+                    status.className = 'success';
+                    loadFiles();
+                } else {
+                    status.textContent = 'Upload failed: ' + xhr.responseText;
+                    status.className = 'error';
+                }
+            };
+
+            xhr.open('POST', '/api/upload');
+            xhr.setRequestHeader('Authorization', 'Bearer ' + authToken);
+            xhr.send(formData);
+        }
+
+        async function loadFiles() {
+            const res = await fetch('/api/files', {
+                headers: { 'Authorization': 'Bearer ' + authToken }
+            });
+            if (res.ok) {
+                const files = await res.json();
+                const list = document.getElementById('files-list');
+                if (files.length === 0) {
+                    list.innerHTML = '<p>No files uploaded yet.</p>';
+                } else {
+                    list.innerHTML = files.map(f => `
+                        <div class="file-item">
+                            <span class="file-name">${f.name}</span>
+                            <span class="file-size">${formatSize(f.size)}</span>
+                            <span class="file-date">${new Date(f.uploadedAt).toLocaleString()}</span>
+                            <a href="/uploads/${f.name}" target="_blank" class="file-download">Download</a>
+                            <button class="file-delete" onclick="deleteFile('${f.name}')">Delete</button>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+
+        async function deleteFile(filename) {
+            if (!confirm('Delete ' + filename + '?')) return;
+            const res = await fetch('/api/files/' + encodeURIComponent(filename), {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + authToken }
+            });
+            if (res.ok) loadFiles();
+        }
+
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        }
+
+        document.getElementById('login-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const error = document.getElementById('login-error');
+            if (await login(username, password)) {
+                showView('main-view');
+                loadFiles();
+            } else {
+                error.textContent = 'Invalid credentials';
+            }
+        };
+
+        document.getElementById('logout-btn').onclick = logout;
+
+        document.getElementById('upload-form').onsubmit = (e) => {
+            e.preventDefault();
+            const file = document.getElementById('file-input').files[0];
+            if (file) uploadFile(file);
+        };
+
+        document.getElementById('refresh-btn').onclick = loadFiles;
+
+        checkAuth().then(authed => {
+            showView(authed ? 'main-view' : 'login-view');
+            if (authed) loadFiles();
+        });
+    </script>
+</body>
+
+</html>
