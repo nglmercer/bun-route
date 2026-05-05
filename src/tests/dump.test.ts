@@ -27,14 +27,51 @@ describe("dump.getDefinitionString", () => {
     expect(method).toBe("^ (M)");
   });
 
-  it("shows [anonym] for anonymous handlers", () => {
+  it("shows [anonym] for anonymous handlers without prototype name", () => {
+    const handler = () => {};
+    Object.defineProperty(handler, "name", { value: "" });
+    Object.defineProperty(handler, "prototype", { value: {} });
     const route: EndpointRoute = {
       splitPath: splitRoutePath("/test"),
       method: parseHttpMethods("GET"),
-      handler: () => {}
+      handler
     };
     const [, , name] = getDefinitionString(route, route.handler, false);
     expect(name).toBe("[anonym]");
+  });
+
+  it("shows / when splitPath is undefined", () => {
+    const route: EndpointRoute = {
+      splitPath: undefined,
+      method: parseHttpMethods("GET"),
+      handler: () => {}
+    };
+    const [, path] = getDefinitionString(route, route.handler, false);
+    expect(path).toBe("/");
+  });
+
+  it("shows [merged] for merged middlewares", () => {
+    const { mergeRequestMiddlewares } = require("../middleware");
+    const route: EndpointRoute = {
+      splitPath: undefined,
+      method: parseHttpMethods("GET"),
+      handler: mergeRequestMiddlewares(() => {}, () => {})
+    };
+    const [, , name] = getDefinitionString(route, route.handler, false);
+    expect(name).toBe("[merged]");
+  });
+
+  it("shows prototype name if handler name is empty", () => {
+    const handler = () => {};
+    Object.defineProperty(handler, "name", { value: "" });
+    Object.defineProperty(handler, "prototype", { value: { name: "ProtoName" } });
+    const route: EndpointRoute = {
+      splitPath: undefined,
+      method: parseHttpMethods("GET"),
+      handler
+    };
+    const [, , name] = getDefinitionString(route, route.handler, false);
+    expect(name).toBe("ProtoName");
   });
 });
 
@@ -65,5 +102,30 @@ describe("dump.dump", () => {
     const mockServer = { url: "http://localhost:3000" } as any;
     const result = dump(routes, mockServer);
     expect(result).toContain("Server is listening on http://localhost:3000");
+  });
+
+  it("includes multiple server urls when provided", () => {
+    const routes: EndpointRoute[] = [{
+      splitPath: splitRoutePath("/test"),
+      method: parseHttpMethods("GET"),
+      handler: () => {}
+    }];
+    const mockServer1 = { url: "http://localhost:3000" } as any;
+    const mockServer2 = { url: "http://localhost:3001" } as any;
+    const result = dump(routes, mockServer1, mockServer2);
+    expect(result).toContain("Server is listening on:");
+    expect(result).toContain("- http://localhost:3000");
+    expect(result).toContain("- http://localhost:3001");
+  });
+
+  it("prints Merged endpoints section for merged handlers", () => {
+    const { mergeRequestMiddlewares } = require("../middleware");
+    const routes: EndpointRoute[] = [{
+      splitPath: splitRoutePath("/test"),
+      method: parseHttpMethods("GET"),
+      handler: mergeRequestMiddlewares(() => {}, () => {})
+    }];
+    const result = dump(routes);
+    expect(result).toContain("Merged endpoints:");
   });
 });

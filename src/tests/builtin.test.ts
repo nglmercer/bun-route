@@ -104,6 +104,34 @@ describe("builtin.basicAuth", () => {
     routes[0].handler(req, res);
     expect(res.sendBasicAuth).toHaveBeenCalled();
   });
+
+  it("sends auth header on unprocessable header (no space)", () => {
+    const routes: EndpointRoute[] = [];
+    basicAuth(routes, "GET", "/protected", () => true);
+    const res = { sendBasicAuth: mock(() => {}) } as any;
+    const req = { headers: new Headers({ authorization: "Basic" }) } as any;
+    routes[0].handler(req, res);
+    expect(res.sendBasicAuth).toHaveBeenCalledWith("Unprocessable authorization header", expect.anything(), expect.anything());
+  });
+
+  it("sends auth header on wrong schema", () => {
+    const routes: EndpointRoute[] = [];
+    basicAuth(routes, "GET", "/protected", () => true);
+    const res = { sendBasicAuth: mock(() => {}) } as any;
+    const req = { headers: new Headers({ authorization: "Bearer token" }) } as any;
+    routes[0].handler(req, res);
+    expect(res.sendBasicAuth).toHaveBeenCalledWith("Unprocessable basic auth schema", expect.anything(), expect.anything());
+  });
+
+  it("sends auth header on missing colon in credentials", () => {
+    const routes: EndpointRoute[] = [];
+    basicAuth(routes, "GET", "/protected", () => true);
+    const res = { sendBasicAuth: mock(() => {}) } as any;
+    const authValue = btoa("nocolonhere");
+    const req = { headers: new Headers({ authorization: `Basic ${authValue}` }) } as any;
+    routes[0].handler(req, res);
+    expect(res.sendBasicAuth).toHaveBeenCalledWith("Unprocessable basic auth credentials", expect.anything(), expect.anything());
+  });
 });
 
 describe("builtin.cookies", () => {
@@ -124,5 +152,73 @@ describe("builtin.cookies", () => {
     } as any;
     routes[0].handler(req, {} as any);
     expect(req.cookies).toEqual({ a: "1" });
+  });
+
+  it("autoResponseHeaders sets beforeSent hook", () => {
+    const routes: EndpointRoute[] = [];
+    cookies(routes, "GET", "/cookies", true);
+    const req = {
+      headers: new Headers({ cookie: "a=1" }),
+      cookies: undefined,
+      originCookies: undefined
+    } as any;
+    const res = {
+      beforeSent: mock((cb: any) => { cb(res); }),
+      reset: mock(() => res),
+      status: mock(() => res),
+      send: mock(() => res)
+    } as any;
+    routes[0].handler(req, res);
+    expect(res.beforeSent).toHaveBeenCalled();
+    expect(req.cookies).toEqual({ a: "1" });
+  });
+});
+
+describe("builtin.staticFiles", () => {
+  it("throws error if target is not a directory", () => {
+    expect(() => staticFiles([], "/static", __filename)).toThrow("static target is not a directory");
+  });
+
+  it("adds a static files route", () => {
+    const routes: EndpointRoute[] = [];
+    staticFiles(routes, "/static", __dirname);
+    expect(routes.length).toBe(1);
+    expect(routes[0].splitPath).toEqual(["static"]);
+  });
+
+  it("redirects index file to root", () => {
+    const routes: EndpointRoute[] = [];
+    staticFiles(routes, "/static", __dirname, "index.html");
+    const req = { path: "/static/index.html" } as any;
+    const res = { sendRedirect: mock(() => {}) } as any;
+    routes[0].handler(req, res);
+    expect(res.sendRedirect).toHaveBeenCalledWith("/static/", true);
+  });
+  
+  it("returns if path exceeds deepestLevel", () => {
+    const routes: EndpointRoute[] = [];
+    staticFiles(routes, "/static", __dirname, "index.html", 2);
+    const req = { path: "/static/a/b/c", splitPath: ["static", "a", "b", "c"] } as any;
+    const res = { send: mock(() => {}) } as any;
+    const result = routes[0].handler(req, res);
+    expect(result).toBeUndefined();
+  });
+
+  it("serves a file if it exists", async () => {
+    const routes: EndpointRoute[] = [];
+    staticFiles(routes, "/static", __dirname);
+    const req = { path: "builtin.test.ts", splitPath: ["builtin.test.ts"] } as any;
+    const res = { send: mock(() => {}), status: mock(() => {}) } as any;
+    await routes[0].handler(req, res);
+    expect(res.send).toHaveBeenCalled();
+  });
+
+  it("sends 404 if file does not exist", async () => {
+    const routes: EndpointRoute[] = [];
+    staticFiles(routes, "/static", __dirname);
+    const req = { path: "does-not-exist.txt", splitPath: ["does-not-exist.txt"] } as any;
+    const res = { send: mock(() => {}), status: mock(() => {}) } as any;
+    await routes[0].handler(req, res);
+    expect(res.status).toHaveBeenCalledWith(404);
   });
 });
