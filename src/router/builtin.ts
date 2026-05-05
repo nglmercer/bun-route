@@ -1,9 +1,9 @@
-import { statSync } from "fs"
+import { statSync, existsSync } from "fs"
 import { join } from "path"
 import { splitRoutePath } from "../path"
 import { parseHttpMethods, HttpMethodString } from "../method"
 import { PATH_CHARS } from "../path"
-import { HTTP_STATUS, HTTP_HEADERS } from "../responseBuilder"
+import { HTTP_STATUS, HTTP_HEADERS, RESPONSE_DEFAULTS } from "../responseBuilder"
 import type { EndpointRoute, RequestMiddleware, WebSocketData } from "../types"
 
 /**
@@ -79,7 +79,7 @@ export function staticFiles(
     indexFile: string = "index.html",
     deepestLevel: number = 10,
 ): EndpointRoute[] {
-    if (!statSync(targetDir).isDirectory()) {
+    if (!existsSync(targetDir) || !statSync(targetDir).isDirectory()) {
         throw new Error("static target is not a directory: " + targetDir)
     }
 
@@ -116,7 +116,7 @@ export function staticFiles(
                 const file = Bun.file(targetPath)
                 return file.exists().then(async (exist) => {
                     if (exist) {
-                        res.send(await file.arrayBuffer())
+                        res.send(file)
                     } else {
                         res.status(HTTP_STATUS.NOT_FOUND)
                     }
@@ -152,8 +152,8 @@ export function basicAuth(
     method: "*" | HttpMethodString,
     path: string,
     validator: ((username: string, password: string) => boolean),
-    realm: string = "User Visible Realm",
-    charset: string = "UTF-8",
+    realm: string = RESPONSE_DEFAULTS.REALM,
+    charset: string = RESPONSE_DEFAULTS.CHARSET,
 ): EndpointRoute[] {
     const basicAuthMiddleware: RequestMiddleware = (req, res) => {
         const auth = req.headers.get(HTTP_HEADERS.AUTHORIZATION)

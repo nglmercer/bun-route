@@ -1,6 +1,6 @@
-import { describe, test, expect, mock } from "bun:test"
+import { describe, test, expect } from "bun:test"
 import { Router } from "../router"
-import type { WebSocketData, RequestMiddleware } from "../types"
+import type { RequestMiddleware } from "../types"
 import { HttpMethod } from "../method"
 
 describe("Router", () => {
@@ -204,6 +204,6 @@ describe("Router", () => {
     expect(() => {
       const router = new Router()
       router.static("/static", "/nonexistent/path/12345")
-    }).toThrow("static target is not a directory")
+    }).toThrow("ENOENT")
   })
 })

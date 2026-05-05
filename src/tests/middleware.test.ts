@@ -1,6 +1,7 @@
 import { describe, test, expect } from "bun:test"
 import { mergeRequestMiddlewares, unmergeRequestMiddleware, isMergedRequestMiddleware, isMergeableEndpointRoute } from "../middleware"
-import type { Request, ResponseBuilder, EndpointRoute } from "../types"
+import type { Request, EndpointRoute } from "../types"
+import { ResponseBuilder } from "../responseBuilder"
 import { HttpMethod } from "../method"
 
 describe("mergeRequestMiddlewares", () => {
@@ -91,33 +92,34 @@ describe("isMergedRequestMiddleware", () => {
 })
 
 describe("isMergeableEndpointRoute", () => {
+  const emptyHandler = () => {}
   test("returns false for different methods", () => {
-    const route1 = { method: HttpMethod.GET, splitPath: undefined } as EndpointRoute
-    const route2 = { method: HttpMethod.POST, splitPath: undefined } as EndpointRoute
+    const route1 = { method: HttpMethod.GET, splitPath: undefined, handler: emptyHandler } as EndpointRoute
+    const route2 = { method: HttpMethod.POST, splitPath: undefined, handler: emptyHandler } as EndpointRoute
     expect(isMergeableEndpointRoute(route1, route2)).toBe(false)
   })
 
   test("returns true when both splitPath are undefined", () => {
-    const route1 = { method: HttpMethod.GET, splitPath: undefined } as EndpointRoute
-    const route2 = { method: HttpMethod.GET, splitPath: undefined } as EndpointRoute
+    const route1 = { method: HttpMethod.GET, splitPath: undefined, handler: emptyHandler } as EndpointRoute
+    const route2 = { method: HttpMethod.GET, splitPath: undefined, handler: emptyHandler } as EndpointRoute
     expect(isMergeableEndpointRoute(route1, route2)).toBe(true)
   })
 
   test("returns false when one splitPath is undefined and the other is defined", () => {
-    const route1 = { method: HttpMethod.GET, splitPath: undefined } as EndpointRoute
-    const route2 = { method: HttpMethod.GET, splitPath: ["test"] } as EndpointRoute
+    const route1 = { method: HttpMethod.GET, splitPath: undefined, handler: emptyHandler } as EndpointRoute
+    const route2 = { method: HttpMethod.GET, splitPath: ["test"], handler: emptyHandler } as EndpointRoute
     expect(isMergeableEndpointRoute(route1, route2)).toBe(false)
   })
 
   test("returns true when splitPath join matches", () => {
-    const route1 = { method: HttpMethod.GET, splitPath: ["a", "b"] } as EndpointRoute
-    const route2 = { method: HttpMethod.GET, splitPath: ["a", "b"] } as EndpointRoute
+    const route1 = { method: HttpMethod.GET, splitPath: ["a", "b"], handler: emptyHandler } as EndpointRoute
+    const route2 = { method: HttpMethod.GET, splitPath: ["a", "b"], handler: emptyHandler } as EndpointRoute
     expect(isMergeableEndpointRoute(route1, route2)).toBe(true)
   })
 
   test("returns false when splitPath join does not match", () => {
-    const route1 = { method: HttpMethod.GET, splitPath: ["a", "b"] } as EndpointRoute
-    const route2 = { method: HttpMethod.GET, splitPath: ["a", "c"] } as EndpointRoute
+    const route1 = { method: HttpMethod.GET, splitPath: ["a", "b"], handler: emptyHandler } as EndpointRoute
+    const route2 = { method: HttpMethod.GET, splitPath: ["a", "c"], handler: emptyHandler } as EndpointRoute
     expect(isMergeableEndpointRoute(route1, route2)).toBe(false)
   })
 })

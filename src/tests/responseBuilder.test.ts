@@ -112,16 +112,15 @@ describe("ResponseBuilder", () => {
 
   test("beforeSent adds hook", () => {
     const res = new ResponseBuilder()
-    let called = false
-    res.beforeSent(() => { called = true })
+    res.beforeSent(() => {})
     expect(res.beforeSentHooks?.length).toBe(1)
   })
 
   test("startBeforeSentHook runs hooks", async () => {
     const res = new ResponseBuilder()
     const order: number[] = []
-    res.beforeSent(() => order.push(1))
-    res.beforeSent(() => order.push(2))
+    res.beforeSent(() => { order.push(1) })
+    res.beforeSent(() => { order.push(2) })
     await res.startBeforeSentHook()
     expect(order).toEqual([2,1])
   })
@@ -130,7 +129,7 @@ describe("ResponseBuilder", () => {
     const res = new ResponseBuilder()
     const order: number[] = []
     res.beforeSent(async () => { await new Promise(r => setTimeout(r, 10)); order.push(1) })
-    res.beforeSent(() => order.push(2))
+    res.beforeSent(() => { order.push(2) })
     await res.startBeforeSentHook()
     expect(order).toEqual([2,1])
   })

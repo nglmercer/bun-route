@@ -1,9 +1,9 @@
-import { describe, test, expect, mock } from "bun:test"
+import { describe, test, expect } from "bun:test"
 import { createHandler, innerHandle, route, routeAsync } from "../router/handler"
 import { ResponseBuilder } from "../responseBuilder"
 import type { EndpointRoute, Request, WebSocketData } from "../types"
+import type { Server } from "bun"
 import { HttpMethod } from "../method"
-import { splitPath } from "../path"
 
 describe("innerHandle", () => {
   test("returns 500 when requestIP returns null", async () => {
@@ -86,7 +86,7 @@ describe("innerHandle", () => {
 describe("route", () => {
   test("returns 404 when no routes match", () => {
     const routes: EndpointRoute[] = []
-    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as unknown as Request
     const res = new ResponseBuilder()
     route(routes, req, res)
     expect(res.statusCode).toBe(404)
@@ -99,7 +99,7 @@ describe("route", () => {
       splitPath: ["test"],
       handler: (req, res) => { res.send("matched") }
     }]
-    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as unknown as Request
     const res = new ResponseBuilder()
     route(routes, req, res)
     expect(res.bodyInit).toBe("matched")
@@ -111,7 +111,7 @@ describe("route", () => {
       splitPath: ["test"],
       handler: (req, res) => { res.send("matched") }
     }]
-    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as unknown as Request
     const res = new ResponseBuilder()
     route(routes, req, res)
     expect(res.statusCode).toBe(404)
@@ -122,7 +122,7 @@ describe("route", () => {
       { method: HttpMethod.GET, splitPath: ["test"], handler: (req, res) => { res.send("first") } },
       { method: HttpMethod.GET, splitPath: ["test"], handler: (req, res) => { res.send("second") } }
     ]
-    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as unknown as Request
     const res = new ResponseBuilder()
     route(routes, req, res)
     expect(res.bodyInit).toBe("first")
@@ -133,7 +133,7 @@ describe("route", () => {
       { method: HttpMethod.GET, splitPath: ["test"], handler: (req, res) => { req.upgraded = true } },
       { method: HttpMethod.GET, splitPath: ["test"], handler: (req, res) => { res.send("second") } }
     ]
-    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as unknown as Request
     const res = new ResponseBuilder()
     route(routes, req, res)
     expect(res.bodyInit).toBe(null)
@@ -145,7 +145,7 @@ describe("route", () => {
       splitPath: ["test"],
       handler: (req, res) => { return new Promise(r => { res.send("async"); r() }) }
     }]
-    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as Request
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["test"], upgraded: false } as unknown as Request
     const res = new ResponseBuilder()
     await route(routes, req, res)
     expect(res.bodyInit).toBe("async")
@@ -157,7 +157,7 @@ describe("route", () => {
       splitPath: ["*"],
       handler: (req, res) => { res.send(req.pathParams?.[0] || "none") }
     }]
-    const req = { httpMethod: HttpMethod.GET, splitPath: ["123"], upgraded: false } as Request
+    const req = { httpMethod: HttpMethod.GET, splitPath: ["123"], upgraded: false } as unknown as Request
     const res = new ResponseBuilder()
     route(routes, req, res)
     expect(res.bodyInit).toBe("123")
@@ -169,7 +169,7 @@ describe("route", () => {
       splitPath: ["test"],
       handler: (req, res) => { res.send("matched all") }
     }]
-    const req = { httpMethod: HttpMethod.POST, splitPath: ["test"], upgraded: false } as Request
+    const req = { httpMethod: HttpMethod.POST, splitPath: ["test"], upgraded: false } as unknown as Request
     const res = new ResponseBuilder()
     route(routes, req, res)
     expect(res.bodyInit).toBe("matched all")
