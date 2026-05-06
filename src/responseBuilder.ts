@@ -16,6 +16,7 @@ export const HTTP_STATUS = {
 } as const
 
 export const HTTP_HEADERS = {
+    CONTENT_TYPE: "content-type",
     LOCATION: "location",
     WWW_AUTHENTICATE: "WWW-Authenticate",
     SET_COOKIE: "Set-Cookie",
@@ -67,7 +68,7 @@ export class ResponseBuilder {
     private async startBeforeSentHookAsync(p: Promise<void>) {
         await p
 
-        let hook = this.beforeSentHooks?.shift()
+        let hook = this.beforeSentHooks?.pop()
         while (hook != undefined) {
             const p = hook(this)
             if (
@@ -76,9 +77,45 @@ export class ResponseBuilder {
             ) {
                 await p
             }
+            hook = this.beforeSentHooks?.pop()
         }
     }
 
+    /**
+     * Sends a file to the client.
+     * @param file The file to send
+     * @param code The status code to use for the response
+     * @returns void because it is submitted to the client
+     */
+    sendFile(file: import("bun").BunFile, code?: number): void {
+        this.reset()
+        this.bodyInit = file
+        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, file.type)
+        if (code) this.statusCode = code
+        this.submit = true
+    }
+    /**
+     * Sends a file to the client.
+     * alias sendFile
+     */
+    file(file: import("bun").BunFile, code?: number): void {
+        this.sendFile(file, code)
+    }
+    /**
+     * Sends a response with no content.
+     * @returns void because it is submitted to the client
+     */
+    sendNoContent(): void {
+        this.reset()
+        this.statusCode = HTTP_STATUS.NO_CONTENT
+        this.submit = true
+    }
+    /**
+     * alias sendNoContent
+     */
+    noContent(): void {
+        this.sendNoContent()
+    }
     /**
      * Starts the before sent hooks in order and waits for them all to finish
      * @returns A promise that resolves when all the hooks have finished
@@ -245,7 +282,85 @@ export class ResponseBuilder {
         this.bodyInit = bodyInit
         this.submit = true
     }
-
+    /**
+     * Sends a JSON response to the client.
+     * 
+     * @param data - The data to send
+     * @param code - The status code to use for the response
+     * @returns void because it is submitted to the client
+     */
+    sendJson(data: unknown, code?: number): void {
+        this.reset()
+        this.bodyInit = JSON.stringify(data)
+        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'application/json')
+        if (code) {
+            this.statusCode = code
+        }
+        this.submit = true
+    }
+    /**
+     * alias sendJson
+     */
+    json(data: unknown, code?: number): void {
+        this.sendJson(data, code)
+    }
+    /**
+     * sends a text response to the client.
+     * @param data The text data to send
+     * @param code The status code to use for the response
+     * @returns void because it is submitted to the client
+     */
+    sendText(data: string, code?: number): void {
+        this.reset()
+        this.bodyInit = data
+        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'text/plain; charset=UTF-8')
+        if (code) this.statusCode = code
+        this.submit = true
+    }
+    /**
+     * alias sendText
+     */
+    text(data: string, code?: number): void {
+        this.sendText(data, code)
+    }
+    /**
+     * sends a html response to the client.
+     * @param data The html data to send
+     * @param code The status code to use for the response
+     * @returns void because it is submitted to the client
+     */
+    sendHtml(data: string, code?: number): void {
+        this.reset()
+        this.bodyInit = data
+        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'text/html; charset=UTF-8')
+        if (code) this.statusCode = code
+        this.submit = true
+    }
+    /**
+     * alias sendHtml
+     */
+    html(data: string, code?: number): void {
+        this.sendHtml(data, code)
+    }
+    /**
+     * Sends an error response to the client.
+     * @param message The error message to send
+     * @param code The status code to use for the response
+     * @returns void because it is submitted to the client
+     */
+    sendError(message: string, code: number = HTTP_STATUS.INTERNAL_SERVER_ERROR): void {
+        this.reset()
+        this.bodyInit = JSON.stringify({ error: message, status: code })
+        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'application/json')
+        this.statusCode = code
+        this.submit = true
+    }
+    /**
+     * alias sendError
+     */
+    error(message: string, code: number = HTTP_STATUS.INTERNAL_SERVER_ERROR): void {
+        this.sendError(message, code)
+    }
     /**
      * Redirects to a given url. If perma is true, this is a 308 redirect, otherwise it is a 307.
      * @param url The url to redirect to
@@ -292,5 +407,19 @@ export class ResponseBuilder {
         )
         this.bodyInit = bodyInit
         this.submit = true
+    }
+
+    /**
+     * Clones the response builder.
+     * @returns A new response builder instance with the same state
+     */
+    clone(): ResponseBuilder {
+        const rb = new ResponseBuilder()
+        rb.statusCode = this.statusCode
+        rb.statusText = this.statusText
+        rb.bodyInit = this.bodyInit
+        rb.headers = [...this.headers]
+        rb.submit = this.submit
+        return rb
     }
 }
