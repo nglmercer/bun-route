@@ -6,6 +6,7 @@ import type { Awaitable, BunRequestHandler, EndpointRoute, Request, WebSocketDat
 import { BunRequest } from "../request"
 import { HttpMethod } from "../method"
 import { QueryParam } from "./querybuilder"
+import { PathParam } from "./pathparam"
 /**
  * Handles a request.
  * This function creates the ResponseBuilder and modifies the base bun request.
@@ -75,6 +76,35 @@ export function innerHandle(
         (key: string): QueryParam
         (): Record<string, QueryParam>
     }
+    req.pathParam = ((key?: string) => {
+        const pp = req.pathParams
+        if (key === undefined) {
+            // Return all path params as Record<string, PathParam>
+            const all: Record<string, PathParam> = {}
+            if (pp && typeof pp === "object" && !Array.isArray(pp)) {
+                for (const k of Object.keys(pp)) {
+                    all[k] = new PathParam(pp[k])
+                }
+            }
+            return all
+        }
+        // Return specific path param
+        if (pp && typeof pp === "object" && !Array.isArray(pp)) {
+            return new PathParam(pp[key])
+        }
+        // For wildcard params (string[]), use numeric index
+        if (Array.isArray(pp)) {
+            const index = parseInt(key)
+            if (!isNaN(index) && index >= 0 && index < pp.length) {
+                return new PathParam(pp[index])
+            }
+        }
+        return new PathParam(undefined)
+    }) as {
+        (key: string): PathParam
+        (): Record<string, PathParam>
+    }
+
     // Parse IP addresses
     const sock = req.server.requestIP(req)
     if (!sock) {

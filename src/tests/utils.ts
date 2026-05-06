@@ -5,6 +5,7 @@ import type { WebSocketData } from "../types";
 // Make previously-optional fields required to match the actual Request shape,
 // and add the missing `upgraded` property.
 import { QueryParam } from "../router/querybuilder"
+import { PathParam } from "../router/pathparam"
 
 type MockRequest = Request & {
     httpMethod: any;
@@ -26,6 +27,10 @@ type MockRequest = Request & {
     param: {
         (key: string): QueryParam;
         (): Record<string, QueryParam>;
+    };
+    pathParam: {
+        (key: string): PathParam;
+        (): Record<string, PathParam>;
     };
 };
 
@@ -59,6 +64,7 @@ export const createMockReq = (
         ip: "127.0.0.1",
         ips: ["127.0.0.1"],
         param: (() => ({})) as any,
+        pathParam: (() => ({})) as any,
         ...rest,
     } as MockRequest;
     // read-only built-ins we can't spread literally

@@ -4,6 +4,7 @@ import { BunRequest } from "./request"
 import type { ResponseBuilder } from "./responseBuilder"
 import type { SplitPath } from "./path"
 import { QueryParam } from "./router/querybuilder"
+import { PathParam } from "./router/pathparam"
 
 export type Awaitable<T> = T | Promise<T>
 export type WebSocketData = {
@@ -22,6 +23,13 @@ export type Request = BunRequest & {
      * Always available in a `Router` handled request when wildcards or named params are used.
      */
     pathParams?: PathParams,
+    /**
+     * `req.pathParam(key)` returns a PathParam wrapper for typed access to path segments.
+     * Works with both named params (:param) and wildcards (*).
+     * `req.pathParam()` returns all path params as Record<string, PathParam>.
+     */
+    pathParam(key: string): PathParam
+    pathParam(): Record<string, PathParam>
     /**
      * `req.httpMethod` is the HttpMethod enum value of the reuqest method used for routing.
      * It is always available in a `Router` handled request.
