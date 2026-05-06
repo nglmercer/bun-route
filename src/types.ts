@@ -76,12 +76,11 @@ export type Request = BunRequest & {
      * Always available in a `Router` handled request.
      */
     /**
-     * `req.param(key)` returns a single query parameter value.
-     * `req.param()` returns all query parameters as a Record.
+     * `req.param(key)` returns a QueryParam wrapper for typed access.
+     * `req.param()` returns all query parameters as Record<string, QueryParam>.
      */
     param(key: string): QueryParam
-    param(key?: undefined): Record<string, QueryParam>
-    param(key?: string): QueryParam | Record<string, QueryParam>
+    param(): Record<string, QueryParam>
     queryParams: Record<string, string>,
     /**
      * `req.query(key)` returns a single query parameter value.

@@ -57,7 +57,7 @@ export function innerHandle(
     req.queries = (key: string) => {
         return searchParams.getAll(key)
     }
-    req.param = (key?: string) => {
+    req.param = ((key?: string) => {
         if (key === undefined) {
             // return all params as Record<string, QueryParam>
             const all: Record<string, QueryParam> = {}
@@ -71,6 +71,9 @@ export function innerHandle(
         if (values.length === 0) return new QueryParam(undefined)
         if (values.length > 1) return new QueryParam(values)
         return new QueryParam(values[0])
+    }) as {
+        (key: string): QueryParam
+        (): Record<string, QueryParam>
     }
     // Parse IP addresses
     const sock = req.server.requestIP(req)
