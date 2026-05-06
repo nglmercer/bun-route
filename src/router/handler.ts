@@ -5,7 +5,7 @@ import { splitPath, requestPathMatchesRouteDefinition } from "../path"
 import type { Awaitable, BunRequestHandler, EndpointRoute, Request, WebSocketData } from "../types"
 import { BunRequest } from "../request"
 import { HttpMethod } from "../method"
-
+import { QueryParam } from "./querybuilder"
 /**
  * Handles a request.
  * This function creates the ResponseBuilder and modifies the base bun request.
@@ -57,7 +57,21 @@ export function innerHandle(
     req.queries = (key: string) => {
         return searchParams.getAll(key)
     }
-
+    req.param = (key?: string) => {
+        if (key === undefined) {
+            // return all params as Record<string, QueryParam>
+            const all: Record<string, QueryParam> = {}
+            for (const k of searchParams.keys()) {
+                const values = searchParams.getAll(k)
+                all[k] = new QueryParam(values.length > 1 ? values : values[0])
+            }
+            return all
+        }
+        const values = searchParams.getAll(key)
+        if (values.length === 0) return new QueryParam(undefined)
+        if (values.length > 1) return new QueryParam(values)
+        return new QueryParam(values[0])
+    }
     // Parse IP addresses
     const sock = req.server.requestIP(req)
     if (!sock) {

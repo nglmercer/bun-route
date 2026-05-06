@@ -3,6 +3,7 @@ import { type HttpMethod } from "./method"
 import { BunRequest } from "./request"
 import type { ResponseBuilder } from "./responseBuilder"
 import type { SplitPath } from "./path"
+import { QueryParam } from "./router/querybuilder"
 
 export type Awaitable<T> = T | Promise<T>
 export type WebSocketData = {
@@ -74,6 +75,13 @@ export type Request = BunRequest & {
      * `req.queryParams` is the parsed query parameters from the URL.
      * Always available in a `Router` handled request.
      */
+    /**
+     * `req.param(key)` returns a single query parameter value.
+     * `req.param()` returns all query parameters as a Record.
+     */
+    param(key: string): QueryParam
+    param(key?: undefined): Record<string, QueryParam>
+    param(key?: string): QueryParam | Record<string, QueryParam>
     queryParams: Record<string, string>,
     /**
      * `req.query(key)` returns a single query parameter value.
