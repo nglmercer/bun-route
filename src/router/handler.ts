@@ -27,7 +27,15 @@ export function innerHandle(
     const url = new URL(req.url)
     req.path = url.pathname
     req.splitPath = splitPath(req.path)
-
+    const cookieHeader = req.headers.get("cookie")
+    if (cookieHeader) {
+        for (const part of cookieHeader.split(";")) {
+            const [key, ...rest] = part.trim().split("=")
+            if (key) {
+                req.cookies[key.trim()] = decodeURIComponent(rest.join("=").trim())
+            }
+        }
+    }
     // Parse query parameters
     const searchParams = url.searchParams
     const queryParams: Record<string, string> = {}
@@ -51,21 +59,20 @@ export function innerHandle(
     }
 
     // Parse IP addresses
+    const sock = req.server.requestIP(req)
+    if (!sock) {
+        return new Response("Request closed early", { status: HTTP_STATUS.INTERNAL_SERVER_ERROR })
+    }
+    req.sock = sock
+
     const forwardedFor = req.headers.get("x-forwarded-for")
     if (forwardedFor) {
         req.ips = forwardedFor.split(",").map(ip => ip.trim())
         req.ip = req.ips[0]
     } else {
-        const sockIP = req.server.requestIP(req)
-        req.ip = sockIP?.address || "127.0.0.1"
+        req.ip = sock.address
         req.ips = [req.ip]
     }
-
-    const sock = req.server.requestIP(req)
-    if (!sock) {
-        return new Response("Request closed to early", { status: HTTP_STATUS.INTERNAL_SERVER_ERROR })
-    }
-    req.sock = sock
 
     const p = route(routes, req, res)
     if (
@@ -201,7 +208,7 @@ export async function routeAsync(
 
     for (let i = initialDefIndex + 1; i < routes.length; i++) {
         if (
-            routes[i].method != undefined &&
+            routes[i].method != HttpMethod.ALL &&
             routes[i].method != req.httpMethod
         ) {
             continue

@@ -5,13 +5,12 @@ import { registerAuthRoutes } from "./lib/auth"
 import { registerUploadRoutes, registerFileRoutes } from "./lib/upload"
 import { registerChatRoutes, getWebSocketHandlers } from "./lib/chat"
 import type { ApiInfo } from "./lib/interfaces"
-import { sendJson } from "./lib/utils"
 const router = new Router()
 
 // Error handler — catches all unhandled errors
 router.onError((err, req, res) => {
     console.error(`[ERROR] ${req.httpMethod} ${req.path}:`, err.message)
-    return sendJson(res, {
+    return res.json({
         error: "Internal server error",
         message: err.message,
     }, 500)
@@ -55,39 +54,37 @@ router.static("/html/**", import.meta.dir + "/html")
 
 // Serve index page
 router.get("/", (_: Request, res: ResponseBuilder) => {
-    res.send(Bun.file(import.meta.dir + "/html/index.html"))
+    res.file(Bun.file(import.meta.dir + "/html/index.html"))
 })
 router.group("/api", (_router) => {
     registerAuthRoutes(_router)
     registerUploadRoutes(_router)
     registerChatRoutes(_router)
 
-// Demo info route — uses req.query() for filtering
-router.get("/api/info", (req: Request, res: ResponseBuilder) => {
-    // getRoutes() now excludes middleware routes by default
-    const endpoints = router.getRoutes()
+    // Demo info route — uses req.query() for filtering
+    router.get("/api/info", (req: Request, res: ResponseBuilder) => {
+        // getRoutes() now excludes middleware routes by default
+        const endpoints = router.getRoutes()
 
-    const info: ApiInfo = {
-        maxFileSize: "50 MB",
-        uploadDir: "./uploads",
-        endpoints,
-        websocket: "WS /chat"
-    }
+        const info: ApiInfo = {
+            maxFileSize: "50 MB",
+            uploadDir: "./uploads",
+            endpoints,
+            websocket: "WS /chat"
+        }
 
-    // Support filtering endpoints by method via query param
-    const methodFilter = req.query("method") as string;
-    if (methodFilter) {
-        const filtered = endpoints.filter(
-            (e) => e.method.toUpperCase() === methodFilter.toUpperCase()
-        );
-        res.setHeader("Content-Type", "application/json")
-        res.send(JSON.stringify({ ...info, endpoints: filtered }))
-        return;
-    }
+        // Support filtering endpoints by method via query param
+        const methodFilter = req.query("method") as string;
+        if (methodFilter && !Array.isArray(methodFilter) && methodFilter.trim().length > 0) {
+            const filtered = endpoints.filter(
+                (e) => e.method.toUpperCase() === methodFilter.trim().toUpperCase()
+            );
+            res.json({ ...info, endpoints: filtered })
+            return;
+        }
 
-    res.setHeader("Content-Type", "application/json")
-    res.send(JSON.stringify(info))
-})
+        res.json(info)
+    })
 })
 
 // Start server with WebSocket support
