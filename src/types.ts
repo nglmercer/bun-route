@@ -9,9 +9,10 @@ import { PathParam } from "./router/pathparam";
 export type Awaitable<T> = T | Promise<T>;
 export type WebSocketData =
   | {
-      createdAt: number;
+      createdAt?: number;
       channelId?: string;
       authToken?: string;
+      [key: string]: unknown;
     }
   | undefined;
 export type PathParams = string[] | Record<string, string>;
@@ -120,7 +121,7 @@ export type BunRequestHandler = (
 export type RequestMiddleware = (
   req: Request,
   res: ResponseBuilder,
-) => Awaitable<void> | void;
+) => void | Response | Promise<void | Response>;
 
 export type MergedRequestMiddleware = RequestMiddleware & {
   base: RequestMiddleware[];

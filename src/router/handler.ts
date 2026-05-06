@@ -122,12 +122,18 @@ export function innerHandle(
     }
 
     const p = route(routes, req, res)
+    if (p instanceof Response) {
+        return p
+    }
     if (
         p &&
         p.then != undefined
     ) {
         return p.then(
-            () => {
+            (response: Response | void) => {
+                if (response instanceof Response) {
+                    return response
+                }
                 if (req.upgraded) {
                     return undefined as unknown as Response
                 }
@@ -179,7 +185,7 @@ export function route(
     routes: EndpointRoute[],
     req: Request,
     res: ResponseBuilder
-): Awaitable<void> {
+): void | Response | Promise<void | Response> {
     for (let i = 0; i < routes.length; i++) {
         if (
             routes[i].method != HttpMethod.ALL &&
@@ -200,6 +206,9 @@ export function route(
         }
 
         const p = routes[i].handler(req, res)
+        if (p instanceof Response) {
+            return p
+        }
         if (
             p != undefined &&
             p.then != undefined
@@ -240,11 +249,17 @@ export function route(
 export async function routeAsync(
     routes: EndpointRoute[],
     initialDefIndex: number,
-    promise: Promise<void>,
+    promise: Promise<void | Response> | Response,
     req: Request,
     res: ResponseBuilder
-): Promise<void> {
-    await promise
+): Promise<void | Response> {
+    if (promise instanceof Response) {
+        return promise
+    }
+    const result = await promise
+    if (result instanceof Response) {
+        return result
+    }
 
     if (
         res.submit === true ||
@@ -273,6 +288,9 @@ export async function routeAsync(
         }
 
         const p = routes[i].handler(req, res)
+        if (p instanceof Response) {
+            return p
+        }
         if (
             p &&
             p.then != undefined

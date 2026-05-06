@@ -50,11 +50,17 @@ export function mergeRequestMiddlewares(
 
     const mergedAsync = async (
         initialDefIndex: number,
-        promise: Promise<void>,
+        promise: Promise<void | Response> | Response,
         req: Request,
         res: ResponseBuilder,
-    ) => {
-        await promise
+    ): Promise<Response | void> => {
+        if (promise instanceof Response) {
+            return promise
+        }
+        const result = await promise
+        if (result instanceof Response) {
+            return result
+        }
 
         if (
             res.submit === true ||
@@ -66,6 +72,9 @@ export function mergeRequestMiddlewares(
         for (let i = initialDefIndex + 1; i < middlewares.length; i++) {
             const middleware = middlewares[i]
             const p = middleware(req, res)
+            if (p instanceof Response) {
+                return p
+            }
             if (
                 p &&
                 p.then != undefined
@@ -86,6 +95,9 @@ export function mergeRequestMiddlewares(
         for (let i = 0; i < middlewares.length; i++) {
             const middleware = middlewares[i]
             const p = middleware(req, res)
+            if (p instanceof Response) {
+                return p
+            }
             if (
                 p &&
                 p.then != undefined
