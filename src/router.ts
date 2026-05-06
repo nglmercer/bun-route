@@ -182,7 +182,14 @@ export class Router {
      * @returns A promise of the Response object returned by the handler.
      */
     request(request: globalThis.Request | string, options?: RequestInit): Promise<Response> {
-        const req = typeof request === "string" ? new globalThis.Request(request, options) : request;
+        let req: globalThis.Request;
+        if (typeof request === "string") {
+            // Handle relative URLs by prepending default base
+            const url = request.startsWith("/") ? `http://localhost${request}` : request;
+            req = new globalThis.Request(url, options);
+        } else {
+            req = request;
+        }
         const res = this.handle(req as unknown as Request, {
             requestIP: () => ({ address: "127.0.0.1", family: "IPv4", port: 0 })
         } as unknown as Server<WebSocketData>);
