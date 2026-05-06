@@ -1,19 +1,47 @@
 import type { BodyInit } from "undici-types"
 import type { Awaitable, CookieOptions } from "./types"
 
+type BunBodyInit = BodyInit | import("bun").BunFile
+
+export const HTTP_STATUS = {
+    OK: 200,
+    NO_CONTENT: 204,
+    TEMPORARY_REDIRECT: 307,
+    PERMANENT_REDIRECT: 308,
+    UNAUTHORIZED: 401,
+    NOT_FOUND: 404,
+    REQUEST_TIMEOUT: 408,
+    TOO_MANY_REQUESTS: 429,
+    INTERNAL_SERVER_ERROR: 500,
+} as const
+
+export const HTTP_HEADERS = {
+    CONTENT_TYPE: "content-type",
+    LOCATION: "location",
+    WWW_AUTHENTICATE: "WWW-Authenticate",
+    SET_COOKIE: "Set-Cookie",
+    AUTHORIZATION: "authorization",
+    COOKIE: "cookie",
+} as const
+
+export const RESPONSE_DEFAULTS = {
+    REALM: "User Visible Realm",
+    CHARSET: "UTF-8",
+} as const
+
 export const notFoundResponse = new Response(
     "Not Found",
     {
-        status: 404,
+        status: HTTP_STATUS.NOT_FOUND,
         statusText: "Not Found",
     }
 )
 
 export class ResponseBuilder {
     submit: boolean = false
-    statusCode: number = 200
+    statusCode: number = HTTP_STATUS.OK
     statusText?: string
-    bodyInit: BodyInit = null
+    bodyInit: BunBodyInit = null
     headers: [string, string][] = []
 
     beforeSentHooks: ((res: ResponseBuilder) => Awaitable<void>)[] | undefined
@@ -40,7 +68,7 @@ export class ResponseBuilder {
     private async startBeforeSentHookAsync(p: Promise<void>) {
         await p
 
-        let hook = this.beforeSentHooks?.shift()
+        let hook = this.beforeSentHooks?.pop()
         while (hook != undefined) {
             const p = hook(this)
             if (
@@ -49,9 +77,45 @@ export class ResponseBuilder {
             ) {
                 await p
             }
+            hook = this.beforeSentHooks?.pop()
         }
     }
 
+    /**
+     * Sends a file to the client.
+     * @param file The file to send
+     * @param code The status code to use for the response
+     * @returns void because it is submitted to the client
+     */
+    sendFile(file: import("bun").BunFile, code?: number): void {
+        this.reset()
+        this.bodyInit = file
+        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, file.type)
+        if (code) this.statusCode = code
+        this.submit = true
+    }
+    /**
+     * Sends a file to the client.
+     * alias sendFile
+     */
+    file(file: import("bun").BunFile, code?: number): void {
+        this.sendFile(file, code)
+    }
+    /**
+     * Sends a response with no content.
+     * @returns void because it is submitted to the client
+     */
+    sendNoContent(): void {
+        this.reset()
+        this.statusCode = HTTP_STATUS.NO_CONTENT
+        this.submit = true
+    }
+    /**
+     * alias sendNoContent
+     */
+    noContent(): void {
+        this.sendNoContent()
+    }
     /**
      * Starts the before sent hooks in order and waits for them all to finish
      * @returns A promise that resolves when all the hooks have finished
@@ -78,8 +142,9 @@ export class ResponseBuilder {
      * @returns The final response object
      */
     build(): Response {
+        type BunBodyInit = string | ArrayBuffer | Blob | FormData | URLSearchParams | ReadableStream | null
         return new Response(
-            this.bodyInit as any, //TODO: fix bun/node type errors
+            this.bodyInit as BunBodyInit,
             {
                 status: this.statusCode,
                 statusText: this.statusText,
@@ -94,7 +159,7 @@ export class ResponseBuilder {
      */
     reset(): ResponseBuilder {
         this.submit = false
-        this.statusCode = 200
+        this.statusCode = HTTP_STATUS.OK
         this.statusText = undefined
         this.bodyInit = null
         this.headers = []
@@ -180,7 +245,7 @@ export class ResponseBuilder {
             cookieParts.push(`SameSite=${options.SameSite}`)
         }
 
-        this.setHeader('Set-Cookie', cookieParts.join('; '), false)
+        this.setHeader(HTTP_HEADERS.SET_COOKIE, cookieParts.join('; '), false)
 
         return this
     }
@@ -191,7 +256,7 @@ export class ResponseBuilder {
      * @returns The response builder instance
      */
     unsetCookie(name: string): ResponseBuilder {
-        this.setHeader('Set-Cookie', name + "=; Expires=Thu, 01 Jan 1970 00:00:00 GMT", false)
+        this.setHeader(HTTP_HEADERS.SET_COOKIE, name + "=; Expires=Thu, 01 Jan 1970 00:00:00 GMT", false)
         return this
     }
 
@@ -201,7 +266,7 @@ export class ResponseBuilder {
      * @returns The response builder instance
      */
     body(
-        bodyInit: BodyInit = null,
+        bodyInit: BunBodyInit = null,
     ): ResponseBuilder {
         this.bodyInit = bodyInit
         return this
@@ -212,12 +277,90 @@ export class ResponseBuilder {
      * @param bodyInit The body of the response, if any
      */
     send(
-        bodyInit: BodyInit = null,
+        bodyInit: BunBodyInit = null,
     ): void {
         this.bodyInit = bodyInit
         this.submit = true
     }
-
+    /**
+     * Sends a JSON response to the client.
+     * 
+     * @param data - The data to send
+     * @param code - The status code to use for the response
+     * @returns void because it is submitted to the client
+     */
+    sendJson(data: unknown, code?: number): void {
+        this.reset()
+        this.bodyInit = JSON.stringify(data)
+        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'application/json')
+        if (code) {
+            this.statusCode = code
+        }
+        this.submit = true
+    }
+    /**
+     * alias sendJson
+     */
+    json(data: unknown, code?: number): void {
+        this.sendJson(data, code)
+    }
+    /**
+     * sends a text response to the client.
+     * @param data The text data to send
+     * @param code The status code to use for the response
+     * @returns void because it is submitted to the client
+     */
+    sendText(data: string, code?: number): void {
+        this.reset()
+        this.bodyInit = data
+        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'text/plain; charset=UTF-8')
+        if (code) this.statusCode = code
+        this.submit = true
+    }
+    /**
+     * alias sendText
+     */
+    text(data: string, code?: number): void {
+        this.sendText(data, code)
+    }
+    /**
+     * sends a html response to the client.
+     * @param data The html data to send
+     * @param code The status code to use for the response
+     * @returns void because it is submitted to the client
+     */
+    sendHtml(data: string, code?: number): void {
+        this.reset()
+        this.bodyInit = data
+        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'text/html; charset=UTF-8')
+        if (code) this.statusCode = code
+        this.submit = true
+    }
+    /**
+     * alias sendHtml
+     */
+    html(data: string, code?: number): void {
+        this.sendHtml(data, code)
+    }
+    /**
+     * Sends an error response to the client.
+     * @param message The error message to send
+     * @param code The status code to use for the response
+     * @returns void because it is submitted to the client
+     */
+    sendError(message: string, code: number = HTTP_STATUS.INTERNAL_SERVER_ERROR): void {
+        this.reset()
+        this.bodyInit = JSON.stringify({ error: message, status: code })
+        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'application/json')
+        this.statusCode = code
+        this.submit = true
+    }
+    /**
+     * alias sendError
+     */
+    error(message: string, code: number = HTTP_STATUS.INTERNAL_SERVER_ERROR): void {
+        this.sendError(message, code)
+    }
     /**
      * Redirects to a given url. If perma is true, this is a 308 redirect, otherwise it is a 307.
      * @param url The url to redirect to
@@ -226,8 +369,8 @@ export class ResponseBuilder {
      */
     sendRedirect(url: string, perma: boolean = false): void {
         this.reset()
-        this.statusCode = perma ? 308 : 307
-        this.headers.push(["location", url])
+        this.statusCode = perma ? HTTP_STATUS.PERMANENT_REDIRECT : HTTP_STATUS.TEMPORARY_REDIRECT
+        this.headers.push([HTTP_HEADERS.LOCATION, url])
         this.submit = true
     }
 
@@ -240,7 +383,7 @@ export class ResponseBuilder {
     sendRedirectCustom(url: string, status: number): void {
         this.reset()
         this.statusCode = status
-        this.headers.push(["location", url])
+        this.headers.push([HTTP_HEADERS.LOCATION, url])
         this.submit = true
     }
 
@@ -251,18 +394,32 @@ export class ResponseBuilder {
      * @returns void because it is submitted to the client
      */
     sendBasicAuth(
-        bodyInit: BodyInit = null,
-        realm: string = "User Visible Realm",
-        charset: string = "UTF-8",
+        bodyInit: BunBodyInit = null,
+        realm: string = RESPONSE_DEFAULTS.REALM,
+        charset: string = RESPONSE_DEFAULTS.CHARSET,
     ): void {
         this.reset()
-        this.statusCode = 401
+        this.statusCode = HTTP_STATUS.UNAUTHORIZED
         this.setHeader(
-            'WWW-Authenticate',
+            HTTP_HEADERS.WWW_AUTHENTICATE,
             'Basic realm="' + realm +
             '", charset="' + charset + '"'
         )
         this.bodyInit = bodyInit
         this.submit = true
+    }
+
+    /**
+     * Clones the response builder.
+     * @returns A new response builder instance with the same state
+     */
+    clone(): ResponseBuilder {
+        const rb = new ResponseBuilder()
+        rb.statusCode = this.statusCode
+        rb.statusText = this.statusText
+        rb.bodyInit = this.bodyInit
+        rb.headers = [...this.headers]
+        rb.submit = this.submit
+        return rb
     }
 }

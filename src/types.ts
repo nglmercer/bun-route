@@ -2,17 +2,26 @@ import { type Server, type SocketAddress } from "bun"
 import { type HttpMethod } from "./method"
 import { BunRequest } from "./request"
 import type { ResponseBuilder } from "./responseBuilder"
-import { SplitPath } from "./router"
+import type { SplitPath } from "./path"
+import { QueryParam } from "./router/querybuilder"
 
 export type Awaitable<T> = T | Promise<T>
+export type WebSocketData = {
+    createdAt: number;
+    channelId?: string;
+    authToken?: string;
+} | undefined;
+export type PathParams = string[] | Record<string, string>
 
 export type Request = BunRequest & {
     /**
      * `req.pathParams` is the path parameters of the request.
-     * If a wildcard is used in the endpoint route,
-     * then it is available in a `Router` handled request.
+     * If a wildcard is used in the endpoint route, it is an array of matched segments.
+     * If named params (:param) are used, it is an object mapping param names to values.
+     * If both are used, named params take precedence in the returned object.
+     * Always available in a `Router` handled request when wildcards or named params are used.
      */
-    pathParams?: string[],
+    pathParams?: PathParams,
     /**
      * `req.httpMethod` is the HttpMethod enum value of the reuqest method used for routing.
      * It is always available in a `Router` handled request.
@@ -32,7 +41,7 @@ export type Request = BunRequest & {
      * `req.server` is the server that is handling the request.
      * It is always available in a `Router` handled request.
      */
-    server: Server,
+    server: Server<WebSocketData>,
     /**
      * `req.sock` is the socket address of the request.
      * It is always available in a `Router` handled request.
@@ -53,10 +62,48 @@ export type Request = BunRequest & {
     /**
      * `req.rid` is set to true if the request has been upgraded to a websocket.
      */
-    upgraded?: true
+    upgraded?: true,
+    /**
+     * `req.id` is the request ID set by the requestId middleware.
+     */
+    id?: string,
+    /**
+     * `req.parsedBody` is the parsed request body set by the bodyParser middleware.
+     */
+    parsedBody?: unknown,
+    /**
+     * `req.queryParams` is the parsed query parameters from the URL.
+     * Always available in a `Router` handled request.
+     */
+    /**
+     * `req.param(key)` returns a single query parameter value.
+     * `req.param()` returns all query parameters as a Record.
+     */
+    param(key: string): QueryParam
+    param(key?: undefined): Record<string, QueryParam>
+    param(key?: string): QueryParam | Record<string, QueryParam>
+    queryParams: Record<string, string>,
+    /**
+     * `req.query(key)` returns a single query parameter value.
+     * `req.query()` returns all query parameters as a Record.
+     */
+    query(key?: string): string | string[] | Record<string, string> | undefined,
+    /**
+     * `req.queries(key)` returns all values for a query parameter (for repeated keys like `?tags=A&tags=B`).
+     */
+    queries(key: string): string[],
+    /**
+     * `req.ip` is the remote IP address of the request.
+     * Always available in a `Router` handled request.
+     */
+    ip: string,
+    /**
+     * `req.ips` is the list of IP addresses from X-Forwarded-For header, or a single-element array.
+     */
+    ips: string[],
 }
 
-export type BunRequestHandler = (request: Request, server: Server) => Awaitable<Response>
+export type BunRequestHandler = (request: Request, server: Server<WebSocketData>) => Awaitable<Response>
 
 export type RequestMiddleware = (req: Request, res: ResponseBuilder) => Awaitable<void>
 
@@ -68,6 +115,7 @@ export interface EndpointRoute {
     handler: RequestMiddleware,
     method: HttpMethod,
     splitPath: SplitPath,
+    middlewareName?: string,
 }
 
 export interface CookieOptions {

@@ -1,5 +1,6 @@
 import type { ResponseBuilder } from "./responseBuilder"
 import type { EndpointRoute, MergedRequestMiddleware, Request, RequestMiddleware } from "./types"
+import { PATH_CHARS } from "./path"
 
 
 
@@ -150,8 +151,8 @@ export function isMergeableEndpointRoute(
     } else if (
         route.splitPath != undefined &&
         route2.splitPath != undefined &&
-        route.splitPath.join("/") ==
-        route2.splitPath.join("/")
+        route.splitPath.join(PATH_CHARS.SLASH) ==
+        route2.splitPath.join(PATH_CHARS.SLASH)
     ) {
         return true
     }

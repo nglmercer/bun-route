@@ -14,6 +14,7 @@ router.static("/**", import.meta.dir + "/html")
 
 export const server = Bun.serve({
     fetch: router.handle,
+    port: 3001,
 })
 
 console.info(router.dump(server))

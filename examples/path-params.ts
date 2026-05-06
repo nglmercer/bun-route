@@ -39,7 +39,8 @@ router.get("/mintwo/*/*/**", (req, res) => {
 })
 
 export const server = Bun.serve({
-    fetch: router.handle
+    fetch: router.handle,
+    port: 3005,
 })
 
 console.info(router.dump(server))
