@@ -13,4 +13,5 @@ export * from "./router/timeout"
 export * from "./router/dump"
 export * from "./router/fileUpload"
 export * from "./router/sse"
-
+export * from "./router/querybuilder"
+export * from "./router/pathparam"
