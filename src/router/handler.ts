@@ -7,6 +7,7 @@ import { BunRequest } from "../request"
 import { HttpMethod } from "../method"
 import { QueryParam } from "./querybuilder"
 import { PathParam } from "./pathparam"
+export { QueryParam, PathParam }
 /**
  * Handles a request.
  * This function creates the ResponseBuilder and modifies the base bun request.
