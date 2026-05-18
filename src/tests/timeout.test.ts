@@ -3,6 +3,7 @@ import { timeout } from "../router/timeout";
 import { parseHttpMethods } from "../method";
 import type { EndpointRoute } from "../types";
 import { createMockReq, createMockRes } from "./utils";
+import { Context } from "../context";
 
 describe("timeout middleware", () => {
   it("adds a timeout route", () => {
@@ -18,7 +19,8 @@ describe("timeout middleware", () => {
     const res = createMockRes();
     res.beforeSent = mock(function () { return res; }) as any;
     const req = createMockReq();
-    routes[0].handler({ req, res });
+    const ctx = new Context(req, res);
+    routes[0].handler(ctx);
     expect(res.beforeSent).toHaveBeenCalled();
   });
 
@@ -41,7 +43,8 @@ describe("timeout middleware", () => {
     res.status = mock(function () { return res; }) as any;
     res.send = mock(function () { res.submit = true; }) as any;
     const req = createMockReq();
-    routes[0].handler({ req, res });
+    const ctx = new Context(req, res);
+    routes[0].handler(ctx);
 
     // Wait for the timeout to fire
     await new Promise(r => setTimeout(r, 50));
@@ -57,7 +60,8 @@ describe("timeout middleware", () => {
     let hookFn: Function | undefined;
     res.beforeSent = mock((fn: Function) => { hookFn = fn; return res; }) as any;
     const req = createMockReq();
-    routes[0].handler({ req, res });
+    const ctx = new Context(req, res);
+    routes[0].handler(ctx);
     expect(hookFn).toBeDefined();
   });
 });

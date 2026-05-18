@@ -2,6 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 import { rateLimit } from "../router/rateLimit";
 import type { EndpointRoute } from "../types";
 import { createMockReq, createMockRes } from "./utils";
+import { Context } from "../context";
 
 describe("rateLimit middleware", () => {
   it("adds a rate limit route", () => {
@@ -18,7 +19,9 @@ describe("rateLimit middleware", () => {
     const req = createMockReq({
       headers: new Headers({ "x-forwarded-for": "1.2.3.4" })
     });
-    routes[0].handler({ req, res });
+
+    const ctx = new Context(req, res)
+    routes[0].handler(ctx);
     expect(res.submit).toBe(false);
   });
 
@@ -29,7 +32,8 @@ describe("rateLimit middleware", () => {
     const req = createMockReq({
       headers: new Headers({ "x-forwarded-for": "1.2.3.4" })
     });
-    routes[0].handler({ req, res });
+    const ctx = new Context(req, res)
+    routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Limit", "10");
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Remaining", "9");
     expect(res.setHeader).toHaveBeenCalledWith(
@@ -47,19 +51,22 @@ describe("rateLimit middleware", () => {
 
     // First request - ok
     const res1 = createMockRes();
-    routes[0].handler(req, res1);
+    const ctx1 = new Context(req, res1)
+    routes[0].handler(ctx1);
     expect(res1.submit).toBe(false);
 
     // Second request - ok
     const res2 = createMockRes();
-    routes[0].handler(req, res2);
+    const ctx2 = new Context(req, res2)
+    routes[0].handler(ctx2);
     expect(res2.submit).toBe(false);
 
     // Third request - blocked
     const res3 = createMockRes();
     res3.status = mock(function () { return res3; }) as any;
     res3.send = mock(function () { res3.submit = true; }) as any;
-    routes[0].handler(req, res3);
+    const ctx3 = new Context(req, res3)
+    routes[0].handler(ctx3);
     expect(res3.status).toHaveBeenCalledWith(429);
   });
 
@@ -70,7 +77,8 @@ describe("rateLimit middleware", () => {
     const req = createMockReq({
       headers: new Headers({ "x-real-ip": "5.6.7.8" })
     });
-    routes[0].handler({ req, res });
+    const ctx = new Context(req, res)
+    routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Limit", "1");
   });
 
@@ -85,7 +93,8 @@ describe("rateLimit middleware", () => {
     const req = createMockReq({
       headers: new Headers({ "x-api-key": "mykey123" })
     });
-    routes[0].handler({ req, res });
+    const ctx = new Context(req, res)
+    routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Limit", "1");
   });
 
@@ -102,14 +111,16 @@ describe("rateLimit middleware", () => {
     const req1 = createMockReq({
       headers: new Headers({ "x-api-key": "a" })
     });
-    routes[0].handler(req1, res1);
+    const ctx1 = new Context(req1, res1)
+    routes[0].handler(ctx1);
 
     // Key "b" - first request (different key, should be ok)
     const res2 = createMockRes();
     const req2 = createMockReq({
       headers: new Headers({ "x-api-key": "b" })
     });
-    routes[0].handler(req2, res2);
+    const ctx2 = new Context(req2, res2)
+    routes[0].handler(ctx2);
     expect(res2.submit).toBe(false);
   });
 
@@ -120,7 +131,8 @@ describe("rateLimit middleware", () => {
     const req = createMockReq({
       headers: new Headers({ "x-forwarded-for": "1.2.3.4" })
     });
-    routes[0].handler({ req, res });
+    const ctx = new Context(req, res)
+    routes[0].handler(ctx);
     expect(res.setHeader).not.toHaveBeenCalledWith(
       "X-RateLimit-Limit",
       expect.anything()
@@ -136,13 +148,15 @@ describe("rateLimit middleware", () => {
 
     // First request
     const res1 = createMockRes();
-    routes[0].handler(req, res1);
+    const ctx1 = new Context(req, res1)
+    routes[0].handler(ctx1);
 
     // Second request - blocked
     const res2 = createMockRes();
     res2.status = mock(function () { return res2; }) as any;
     res2.send = mock(function () { res2.submit = true; }) as any;
-    routes[0].handler(req, res2);
+    const ctx2 = new Context(req, res2)
+    routes[0].handler(ctx2);
     expect(res2.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
   });
 
@@ -154,13 +168,16 @@ describe("rateLimit middleware", () => {
     });
 
     // First request
-    routes[0].handler(req, createMockRes());
+    const res1 = createMockRes();
+    const ctx1 = new Context(req, res1)
+    routes[0].handler(ctx1);
 
     // Second request - blocked
-    const res = createMockRes();
-    res.status = mock(function () { return res; }) as any;
-    res.send = mock(function () { res.submit = true; }) as any;
-    routes[0].handler({ req, res });
-    expect(res.send).toHaveBeenCalledWith("Slow down!");
+    const res2 = createMockRes();
+    res2.status = mock(function () { return res2; }) as any;
+    res2.send = mock(function () { res2.submit = true; }) as any;
+    const ctx2 = new Context(req, res2)
+    routes[0].handler(ctx2);
+    expect(res2.send).toHaveBeenCalledWith("Slow down!");
   });
 });

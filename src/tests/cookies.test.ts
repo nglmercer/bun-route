@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { parseCookies, storeCookies } from "../router/cookies";
 import { createMockReq, createMockRes } from "./utils";
+
 describe("parseCookies", () => {
   it("sets empty cookies when no cookie header", () => {
     const req = createMockReq({
@@ -75,8 +76,7 @@ describe("storeCookies", () => {
   it("sends 500 when no request cookies", () => {
     const res = createMockRes();
     const req = createMockReq({ cookies: undefined });
-
-    storeCookies({ req, res });
+    storeCookies(req, res);
     expect(res.reset).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.send).toHaveBeenCalledWith("Request cookies store error");
@@ -89,7 +89,7 @@ describe("storeCookies", () => {
       originCookies: {}
     });
 
-    storeCookies({ req, res });
+    storeCookies(req, res);
     expect(res.setCookie).toHaveBeenCalledWith("a", "1");
   });
 
@@ -100,7 +100,7 @@ describe("storeCookies", () => {
       originCookies: { a: "1" }
     });
 
-    storeCookies({ req, res });
+    storeCookies(req, res);
     expect(res.setCookie).toHaveBeenCalledWith("a", "2");
   });
 
@@ -111,7 +111,7 @@ describe("storeCookies", () => {
       originCookies: { a: "1" }
     });
 
-    storeCookies({ req, res });
+    storeCookies(req, res);
     expect(res.unsetCookie).toHaveBeenCalledWith("a");
   });
 
@@ -122,7 +122,7 @@ describe("storeCookies", () => {
       originCookies: { a: "1" }
     });
 
-    storeCookies({ req, res });
+    storeCookies(req, res);
     expect(res.setCookie).not.toHaveBeenCalled();
     expect(res.unsetCookie).not.toHaveBeenCalled();
   });

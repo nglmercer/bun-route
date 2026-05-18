@@ -4,6 +4,7 @@ import type { EndpointRoute } from "../types";
 import { createMockReq, createMockRes } from "./utils";
 import { mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
 import { join } from "path";
+import { Context } from "../context";
 
 const TEST_DIR = "/tmp/bun-route-etag-test";
 
@@ -32,7 +33,8 @@ describe("staticFiles with ETag", () => {
       pathParams: ["test.txt"]
     });
     const res = createMockRes();
-    await routes[0].handler({ req, res });
+    const ctx = new Context(req, res);
+    await routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith("ETag", expect.stringMatching(/^".*"$/));
     cleanupTestDir();
   });
@@ -47,7 +49,8 @@ describe("staticFiles with ETag", () => {
       pathParams: ["test.txt"]
     });
     const res = createMockRes();
-    await routes[0].handler({ req, res });
+    const ctx = new Context(req, res);
+    await routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith("Cache-Control", "public, max-age=0");
     cleanupTestDir();
   });
@@ -64,7 +67,8 @@ describe("staticFiles with ETag", () => {
       pathParams: ["test.txt"]
     });
     const res1 = createMockRes();
-    await routes[0].handler(req1, res1);
+    const ctx1 = new Context(req1, res1);
+    await routes[0].handler(ctx1);
 
     // Get the ETag from the setHeader calls
     const etagCall = (res1.setHeader as any).mock.calls.find(
@@ -83,7 +87,8 @@ describe("staticFiles with ETag", () => {
       const res2 = createMockRes();
       res2.status = mock(function () { return res2; }) as any;
       res2.send = mock(function () { res2.submit = true; }) as any;
-      await routes[0].handler(req2, res2);
+      const ctx2 = new Context(req2, res2);
+      await routes[0].handler(ctx2);
       expect(res2.status).toHaveBeenCalledWith(304);
     }
 
@@ -101,7 +106,8 @@ describe("staticFiles with ETag", () => {
       headers: new Headers({ "if-none-match": "\"wrong-etag\"" })
     });
     const res = createMockRes();
-    await routes[0].handler({ req, res });
+    const ctx = new Context(req, res);
+    await routes[0].handler(ctx);
     // Should still send the file (not 304)
     expect(res.status).not.toHaveBeenCalledWith(304);
     cleanupTestDir();
@@ -118,7 +124,8 @@ describe("staticFiles with ETag", () => {
       pathParams: ["test.txt"]
     });
     const res1 = createMockRes();
-    await routes[0].handler(req1, res1);
+    const ctx1 = new Context(req1, res1);
+    await routes[0].handler(ctx1);
 
     const req2 = createMockReq({
       path: "/static/test.txt",
@@ -126,7 +133,8 @@ describe("staticFiles with ETag", () => {
       pathParams: ["test.txt"]
     });
     const res2 = createMockRes();
-    await routes[0].handler(req2, res2);
+    const ctx2 = new Context(req2, res2);
+    await routes[0].handler(ctx2);
 
     const etag1 = (res1.setHeader as any).mock.calls.find(
       (c: any[]) => c[0] === "ETag"

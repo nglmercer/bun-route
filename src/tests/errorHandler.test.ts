@@ -4,7 +4,7 @@ import { Router } from "../router";
 describe("Router.onError()", () => {
   it("returns router for chaining", () => {
     const router = new Router();
-    const result = router.onError((err, req, res) => {
+    const result = router.onError((err, { req, res }) => {
       res.status(500).send("error");
     });
     expect(result).toBe(router);
@@ -12,7 +12,7 @@ describe("Router.onError()", () => {
 
   it("catches sync errors in handlers", async () => {
     const router = new Router();
-    router.onError((err, req, res) => {
+    router.onError((err, { req, res }) => {
       res.status(500).send(`caught: ${err.message}`);
     });
     router.get("/test", () => {
@@ -25,7 +25,7 @@ describe("Router.onError()", () => {
 
   it("catches async errors in handlers", async () => {
     const router = new Router();
-    router.onError((err, req, res) => {
+    router.onError((err, { req, res }) => {
       res.status(500).send(`caught: ${err.message}`);
     });
     router.get("/test", async () => {
@@ -59,7 +59,7 @@ describe("Router.onError()", () => {
   it("error handler receives the request object", async () => {
     const router = new Router();
     let receivedPath = "";
-    router.onError((err, req, res) => {
+    router.onError((err, { req, res }) => {
       receivedPath = req.path;
       res.status(500).send("ok");
     });
@@ -72,7 +72,7 @@ describe("Router.onError()", () => {
 
   it("error handler can set custom headers", async () => {
     const router = new Router();
-    router.onError((err, req, res) => {
+    router.onError((err, { req, res }) => {
       res.setHeader("X-Error", "true");
       res.status(500).send("error");
     });
@@ -83,10 +83,10 @@ describe("Router.onError()", () => {
 
   it("multiple error handlers - last one wins", async () => {
     const router = new Router();
-    router.onError((err, req, res) => {
+    router.onError((err, { req, res }) => {
       res.status(500).send("first");
     });
-    router.onError((err, req, res) => {
+    router.onError((err, { req, res }) => {
       res.status(500).send("second");
     });
     router.get("/test", () => { throw new Error("test"); });
