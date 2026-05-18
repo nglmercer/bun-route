@@ -8,6 +8,23 @@ import { HttpMethod, parseHttpMethods } from "../method";
 import type { SplitPath } from "../path";
 import type { Awaitable } from "../types";
 
+// ─── Tracked mock helper ─────────────────────────────────────────────
+
+type TrackedFn<T extends (...args: any[]) => any> = T & {
+  calls: Array<Parameters<T>>;
+  mock: { calls: Array<Parameters<T>>; results: Array<{ type: string; value: any }> };
+};
+
+function tracked<T extends (...args: any[]) => any>(fn: T): TrackedFn<T> {
+  const m = mock(fn) as any;
+  Object.defineProperty(m, "calls", {
+    get: () => m.mock.calls,
+    enumerable: true,
+    configurable: true,
+  });
+  return m;
+}
+
 // ─── Events ───────────────────────────────────────────────────────────
 
 export interface MockResponseEventMap {
@@ -122,7 +139,7 @@ export class MockRequest extends EventTarget {
     this.splitPath = options.splitPath;
     this.server = (options.server ?? {}) as Server<WebSocketData>;
     this.sock = (options.sock ?? {}) as SocketAddress;
-    this.cookies = "cookies" in options ? options.cookies : {};
+    this.cookies = ("cookies" in options ? options.cookies : {}) as Record<string, string | undefined>;
     this.originCookies = "originCookies" in options ? options.originCookies : undefined;
     this.upgraded = options.upgraded;
     this.id = options.id;
@@ -263,7 +280,7 @@ export class MockResponseBuilder extends EventTarget {
 
   // ── Status ────────────────────────────────────────────────────────
 
-  status = mock((code: number, text?: string): this => {
+  status = tracked((code: number, text?: string): this => {
     this.statusCode = code;
     if (text !== undefined) this.statusText = text;
     this.dispatchEvent(new CustomEvent("status", { detail: { code, text } }));
@@ -272,21 +289,21 @@ export class MockResponseBuilder extends EventTarget {
 
   // ── Body / send ───────────────────────────────────────────────────
 
-  send = mock((body: unknown = null): void => {
+  send = tracked((body: unknown = null): void => {
     this.bodyInit = body;
     this.submit = true;
     this.dispatchEvent(new CustomEvent("send", { detail: { body } }));
     this.dispatchEvent(new CustomEvent("response"));
   });
 
-  body = mock((body: unknown = null): this => {
+  body = tracked((body: unknown = null): this => {
     this.bodyInit = body;
     return this;
   });
 
   // ── Typed responses ───────────────────────────────────────────────
 
-  sendJson = mock((data: unknown, code?: number): void => {
+  sendJson = tracked((data: unknown, code?: number): void => {
     const saved = this.statusCode;
     this.reset();
     this.statusCode = saved;
@@ -297,11 +314,11 @@ export class MockResponseBuilder extends EventTarget {
     this.dispatchEvent(new CustomEvent("response"));
   });
 
-  json = mock((data: unknown, code?: number): void => {
+  json = tracked((data: unknown, code?: number): void => {
     this.sendJson(data, code);
   });
 
-  sendText = mock((data: string, code?: number): void => {
+  sendText = tracked((data: string, code?: number): void => {
     this.reset();
     this.bodyInit = data;
     this.setHeader("content-type", "text/plain; charset=UTF-8");
@@ -310,11 +327,11 @@ export class MockResponseBuilder extends EventTarget {
     this.dispatchEvent(new CustomEvent("response"));
   });
 
-  text = mock((data: string, code?: number): void => {
+  text = tracked((data: string, code?: number): void => {
     this.sendText(data, code);
   });
 
-  sendHtml = mock((data: string, code?: number): void => {
+  sendHtml = tracked((data: string, code?: number): void => {
     this.reset();
     this.bodyInit = data;
     this.setHeader("content-type", "text/html; charset=UTF-8");
@@ -323,11 +340,11 @@ export class MockResponseBuilder extends EventTarget {
     this.dispatchEvent(new CustomEvent("response"));
   });
 
-  html = mock((data: string, code?: number): void => {
+  html = tracked((data: string, code?: number): void => {
     this.sendHtml(data, code);
   });
 
-  sendError = mock((message: string, code: number = 500): void => {
+  sendError = tracked((message: string, code: number = 500): void => {
     this.reset();
     this.bodyInit = JSON.stringify({ error: message, status: code });
     this.setHeader("content-type", "application/json");
@@ -336,24 +353,24 @@ export class MockResponseBuilder extends EventTarget {
     this.dispatchEvent(new CustomEvent("response"));
   });
 
-  error = mock((message: string, code: number = 500): void => {
+  error = tracked((message: string, code: number = 500): void => {
     this.sendError(message, code);
   });
 
-  sendNoContent = mock((): void => {
+  sendNoContent = tracked((): void => {
     this.reset();
     this.statusCode = 204;
     this.submit = true;
     this.dispatchEvent(new CustomEvent("response"));
   });
 
-  noContent = mock((): void => {
+  noContent = tracked((): void => {
     this.sendNoContent();
   });
 
   // ── File ──────────────────────────────────────────────────────────
 
-  sendFile = mock((file: import("bun").BunFile, code?: number): void => {
+  sendFile = tracked((file: import("bun").BunFile, code?: number): void => {
     this.reset();
     this.bodyInit = file;
     this.setHeader("content-type", file.type);
@@ -362,13 +379,13 @@ export class MockResponseBuilder extends EventTarget {
     this.dispatchEvent(new CustomEvent("response"));
   });
 
-  file = mock((file: import("bun").BunFile, code?: number): void => {
+  file = tracked((file: import("bun").BunFile, code?: number): void => {
     this.sendFile(file, code);
   });
 
   // ── Redirect ──────────────────────────────────────────────────────
 
-  sendRedirect = mock((url: string, permanent: boolean = false): void => {
+  sendRedirect = tracked((url: string, permanent: boolean = false): void => {
     this.reset();
     this.statusCode = permanent ? 308 : 307;
     this.headers.push(["location", url]);
@@ -379,7 +396,7 @@ export class MockResponseBuilder extends EventTarget {
     this.dispatchEvent(new CustomEvent("response"));
   });
 
-  sendRedirectCustom = mock((url: string, status: number): void => {
+  sendRedirectCustom = tracked((url: string, status: number): void => {
     this.reset();
     this.statusCode = status;
     this.headers.push(["location", url]);
@@ -392,7 +409,7 @@ export class MockResponseBuilder extends EventTarget {
 
   // ── Headers ───────────────────────────────────────────────────────
 
-  setHeader = mock(
+  setHeader = tracked(
     (name: string, value: string, overwrite: boolean = true): this => {
       if (overwrite) {
         this.unsetHeader(name);
@@ -405,7 +422,7 @@ export class MockResponseBuilder extends EventTarget {
     },
   );
 
-  unsetHeader = mock((name: string): this => {
+  unsetHeader = tracked((name: string): this => {
     const lower = name.toLowerCase();
     this.headers = this.headers.filter(([h]) => h.toLowerCase() !== lower);
     return this;
@@ -413,7 +430,7 @@ export class MockResponseBuilder extends EventTarget {
 
   // ── Cookies ───────────────────────────────────────────────────────
 
-  setCookie = mock(
+  setCookie = tracked(
     (name: string, value: string, options: CookieOptions = {}): this => {
       const parts = [`${name}=${encodeURIComponent(value)}`];
       if (options.MaxAge) parts.push(`Max-Age=${options.MaxAge}`);
@@ -426,7 +443,7 @@ export class MockResponseBuilder extends EventTarget {
     },
   );
 
-  unsetCookie = mock((name: string): this => {
+  unsetCookie = tracked((name: string): this => {
     this.setHeader(
       "Set-Cookie",
       `${name}=; Expires=Thu, 01 Jan 1970 00:00:00 GMT`,
@@ -437,7 +454,7 @@ export class MockResponseBuilder extends EventTarget {
 
   // ── Hooks ─────────────────────────────────────────────────────────
 
-  beforeSent = mock(
+  beforeSent = tracked(
     (hook: (res: MockResponseBuilder) => Awaitable<void>): this => {
       this._beforeSentHooks.push(hook);
       this.dispatchEvent(
@@ -471,7 +488,7 @@ export class MockResponseBuilder extends EventTarget {
 
   // ── Reset / build / clone ─────────────────────────────────────────
 
-  reset = mock((): this => {
+  reset = tracked((): this => {
     this.submit = false;
     this.statusCode = 200;
     this.statusText = undefined;

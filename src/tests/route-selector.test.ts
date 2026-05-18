@@ -11,7 +11,8 @@ describe("requestPathMatchesRouteDefinition without wildcards", () => {
 
   it("empty array on undefined should result in false", () => {
     expect(requestPathMatchesRouteDefinition(
-      [] as any,
+      //@ts-expect-error
+      [],
       undefined
     )).toBe(false)
   })
@@ -33,7 +34,8 @@ describe("requestPathMatchesRouteDefinition without wildcards", () => {
   it("undefined on empty array should result in false", () => {
     expect(requestPathMatchesRouteDefinition(
       undefined,
-      [] as any
+      //@ts-expect-error
+      []
     )).toBe(false)
   })
 

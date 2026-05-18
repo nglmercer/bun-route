@@ -103,7 +103,7 @@ export function createSSEStream(res: ResponseBuilder): SSEStream {
         }
     }
 
-    res.body(stream as any)
+    res.body(stream)
     res.submit = true
 
     return sseApi

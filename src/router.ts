@@ -142,13 +142,13 @@ export class Router {
     handle: BunRequestHandler = (request, server) => {
         try {
             const result = innerHandle(this.routes, request, server)
-            if (result && typeof (result as any).then === "function") {
+            if (result && result instanceof Promise) {
                 return (result as Promise<Response>).catch((err: Error) => {
                     if (this.errorHandler) {
                         const res = new ResponseBuilder()
                         const ctx = { req: request, res } as Context
                         const p = this.errorHandler(err, ctx)
-                        if (p && typeof (p as any).then === "function") {
+                        if (p && p instanceof Promise) {
                             return (p as Promise<void>).then(() => res.build())
                         }
                         return res.build()
@@ -164,7 +164,7 @@ export class Router {
                 const res = new ResponseBuilder()
                 const ctx = { req: request, res } as Context
                 const p = this.errorHandler(err as Error, ctx)
-                if (p && typeof (p as any).then === "function") {
+                if (p && p instanceof Promise) {
                     return (p as Promise<void>).then(() => res.build())
                 }
                 return res.build()

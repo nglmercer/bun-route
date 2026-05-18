@@ -61,7 +61,8 @@ describe("requestPathMatchesRouteDefinition with double wildcards", () => {
 
   it("double wildcard with an empty path should result in an empty array", () => {
     expect(() => requestPathMatchesRouteDefinition(
-      [] as any, ["**"]
+      //@ts-expect-error
+      [], ["**"]
 
     )).toThrowError()
   })
@@ -75,7 +76,8 @@ describe("requestPathMatchesRouteDefinition with double wildcards", () => {
 
   it("only double wildcard with empty path should result in []", () => {
     expect(() => requestPathMatchesRouteDefinition(
-      [] as any, ["**"]
+      //@ts-expect-error
+      [], ["**"]
 
     )).toThrowError()
   })
