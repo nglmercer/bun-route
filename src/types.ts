@@ -17,7 +17,7 @@ export type WebSocketData =
   | undefined;
 export type PathParams = string[] | Record<string, string>;
 
-export type Request = BunRequest & {
+export interface Request extends BunRequest {
   /**
    * `req.pathParams` is the path parameters of the request.
    * If a wildcard is used in the endpoint route, it is an array of matched segments.
@@ -111,7 +111,31 @@ export type Request = BunRequest & {
    * `req.ips` is the list of IP addresses from X-Forwarded-For header, or a single-element array.
    */
   ips: string[];
-};
+}
+
+/**
+ * ## Extending the Request Type
+ * 
+ * If you want to add custom properties to the Request type (like `req.user`),
+ * use TypeScript module augmentation in your project:
+ * 
+ * ```typescript
+ * // types.d.ts in your project
+ * import "bun-route"
+ * 
+ * declare module "bun-route" {
+ *   interface Request {
+ *     user?: {
+ *       id: string
+ *       role: string
+ *       email: string
+ *     }
+ *   }
+ * }
+ * ```
+ * 
+ * After augmentation, you can access `req.user` in your handlers with full type safety.
+ */
 
 export type BunRequestHandler = (
   request: Request,

@@ -9,6 +9,7 @@ export const HTTP_STATUS = {
     TEMPORARY_REDIRECT: 307,
     PERMANENT_REDIRECT: 308,
     UNAUTHORIZED: 401,
+    FORBIDDEN: 403,
     NOT_FOUND: 404,
     REQUEST_TIMEOUT: 408,
     TOO_MANY_REQUESTS: 429,
@@ -290,7 +291,9 @@ export class ResponseBuilder {
      * @returns void because it is submitted to the client
      */
     sendJson(data: unknown, code?: number): void {
+        const savedStatusCode = this.statusCode
         this.reset()
+        this.statusCode = savedStatusCode
         this.bodyInit = JSON.stringify(data)
         this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'application/json')
         if (code) {
