@@ -2,26 +2,20 @@ import type { Server } from "bun"
 import { ResponseBuilder, HTTP_STATUS } from "../responseBuilder"
 import { parseHttpMethods } from "../method"
 import { splitPath, requestPathMatchesRouteDefinition } from "../path"
-import type { Awaitable, BunRequestHandler, EndpointRoute, Request, WebSocketData } from "../types"
+import type { Awaitable, BunRequestHandler, EndpointRoute, WebSocketData, Context } from "../types"
 import { BunRequest } from "../request"
 import { HttpMethod } from "../method"
 import { QueryParam } from "./querybuilder"
 import { PathParam } from "./pathparam"
-/**
- * Handles a request.
- * This function creates the ResponseBuilder and modifies the base bun request.
- * @param routes The routes to match against
- * @param req A request to handle
- * @param server A server to handle it on
- * @returns Bun response, void or a promise of response or void
- */
+import { Context as ContextImpl } from "../context"
+
 export function innerHandle(
     routes: EndpointRoute[],
     request: BunRequest,
     server: Server<WebSocketData>
 ): Awaitable<Response> {
     const res = new ResponseBuilder()
-    const req = request as Request
+    const req = request as import("../types").Request
     req.httpMethod = parseHttpMethods(req.method)
     req.server = server
     req.cookies = {}
@@ -37,7 +31,6 @@ export function innerHandle(
             }
         }
     }
-    // Parse query parameters
     const searchParams = url.searchParams
     const queryParams: Record<string, string> = {}
     for (const [key, value] of searchParams) {
@@ -48,7 +41,6 @@ export function innerHandle(
         if (key === undefined) {
             return { ...queryParams }
         }
-        // Check for repeated keys (array values)
         const values = searchParams.getAll(key)
         if (values.length > 1) {
             return values
@@ -60,7 +52,6 @@ export function innerHandle(
     }
     req.param = ((key?: string) => {
         if (key === undefined) {
-            // return all params as Record<string, QueryParam>
             const all: Record<string, QueryParam> = {}
             for (const k of searchParams.keys()) {
                 const values = searchParams.getAll(k)
@@ -79,7 +70,6 @@ export function innerHandle(
     req.pathParam = ((key?: string) => {
         const pp = req.pathParams
         if (key === undefined) {
-            // Return all path params as Record<string, PathParam>
             const all: Record<string, PathParam> = {}
             if (pp && typeof pp === "object" && !Array.isArray(pp)) {
                 for (const k of Object.keys(pp)) {
@@ -88,11 +78,9 @@ export function innerHandle(
             }
             return all
         }
-        // Return specific path param
         if (pp && typeof pp === "object" && !Array.isArray(pp)) {
             return new PathParam(pp[key])
         }
-        // For wildcard params (string[]), use numeric index
         if (Array.isArray(pp)) {
             const index = parseInt(key)
             if (!isNaN(index) && index >= 0 && index < pp.length) {
@@ -105,7 +93,6 @@ export function innerHandle(
         (): Record<string, PathParam>
     }
 
-    // Parse IP addresses
     const sock = req.server.requestIP(req)
     if (!sock) {
         return new Response("Request closed early", { status: HTTP_STATUS.INTERNAL_SERVER_ERROR })
@@ -121,14 +108,12 @@ export function innerHandle(
         req.ips = [req.ip]
     }
 
-    const p = route(routes, req, res)
+    const ctx = new ContextImpl(req, res)
+    const p = route(routes, ctx)
     if (p instanceof Response) {
         return p
     }
-    if (
-        p &&
-        p.then != undefined
-    ) {
+    if (p && p.then != undefined) {
         return p.then(
             (response: Response | void) => {
                 if (response instanceof Response) {
@@ -138,15 +123,9 @@ export function innerHandle(
                     return undefined as unknown as Response
                 }
                 const p = res.startBeforeSentHook()
-                if (
-                    p &&
-                    p.then != undefined
-                ) {
-                    return p.then(() => {
-                        return res.build()
-                    })
+                if (p && p.then != undefined) {
+                    return p.then(() => res.build())
                 }
-
                 return res.build()
             }
         )
@@ -156,36 +135,19 @@ export function innerHandle(
         return undefined as unknown as Response
     }
     const p2 = res.startBeforeSentHook()
-    if (
-        p2 &&
-        p2.then != undefined
-    ) {
-        return p2.then(() => {
-            return res.build()
-        })
+    if (p2 && p2.then != undefined) {
+        return p2.then(() => res.build())
     }
 
     return res.build()
 }
 
-/**
- * This function will route a request to the correct handler based on the request's method and path.
- * Recursively calls middlewares until a handler sets `res.submit` to true or `req.upgraded` to true.
- * 
- * First handles the request synchronously until a async middleware is hit.
- * Then its uses the routeAsync function to handle it in a promise.
- * 
- * If no async middleware is hit the request is handled fully synchronously.
- * @param routes The routes to match against
- * @param req A modified bun request to handle
- * @param res A response builder
- * @returns Bun response, void or a promise of response or void
- */
 export function route(
     routes: EndpointRoute[],
-    req: Request,
-    res: ResponseBuilder
+    ctx: Context,
 ): void | Response | Promise<void | Response> {
+    const req = ctx.req
+    const res = ctx.res
     for (let i = 0; i < routes.length; i++) {
         if (
             routes[i].method != HttpMethod.ALL &&
@@ -205,21 +167,15 @@ export function route(
             req.pathParams = pathParams as string[] | Record<string, string>
         }
 
-        const p = routes[i].handler(req, res)
+        const p = routes[i].handler(ctx)
         if (p instanceof Response) {
             return p
         }
-        if (
-            p != undefined &&
-            p.then != undefined
-        ) {
-            return routeAsync(routes, i, p, req, res)
+        if (p != undefined && p.then != undefined) {
+            return routeAsync(routes, i, p, ctx)
         }
 
-        if (
-            res.submit === true ||
-            req.upgraded === true
-        ) {
+        if (res.submit === true || req.upgraded === true) {
             return
         }
     }
@@ -233,26 +189,14 @@ export function route(
         .body("Not found")
 }
 
-/**
- * Is a followup of the route function. Is used if the route function hits a async middleware.
- * The route function will provide the initialDefIndex when routeAsync is called.
- * The initialDefIndex is the index of the first found async middleware in the route function.
- *
- * If route dont hits a async middleware, routeAsync dont get called
- * @param routes The routes to match against
- * @param initialDefIndex The index of the first found async middleware in the route function
- * @param promise The promise returned by the first async middleware found by the route function
- * @param req A modified bun request to handle
- * @param res A response builder
- * @returns Bun response, void or a promise of response or void
- */
 export async function routeAsync(
     routes: EndpointRoute[],
     initialDefIndex: number,
     promise: Promise<void | Response> | Response,
-    req: Request,
-    res: ResponseBuilder
+    ctx: Context,
 ): Promise<void | Response> {
+    const req = ctx.req
+    const res = ctx.res
     if (promise instanceof Response) {
         return promise
     }
@@ -261,10 +205,7 @@ export async function routeAsync(
         return result
     }
 
-    if (
-        res.submit === true ||
-        req.upgraded === true
-    ) {
+    if (res.submit === true || req.upgraded === true) {
         return
     }
 
@@ -287,21 +228,15 @@ export async function routeAsync(
             req.pathParams = pathParams as string[] | Record<string, string>
         }
 
-        const p = routes[i].handler(req, res)
+        const p = routes[i].handler(ctx)
         if (p instanceof Response) {
             return p
         }
-        if (
-            p &&
-            p.then != undefined
-        ) {
+        if (p && p.then != undefined) {
             await p
         }
 
-        if (
-            (res.submit as boolean) === true ||
-            req.upgraded === true
-        ) {
+        if ((res.submit as boolean) === true || req.upgraded === true) {
             return
         }
     }
@@ -315,11 +250,6 @@ export async function routeAsync(
         .body("Not found")
 }
 
-/**
- * Creates a BunRequestHandler that uses the given routes.
- * @param routes The routes to use
- * @returns A BunRequestHandler
- */
 export function createHandler(
     routes: EndpointRoute[]
 ): BunRequestHandler {

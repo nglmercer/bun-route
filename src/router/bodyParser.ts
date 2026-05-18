@@ -52,7 +52,8 @@ export function bodyParser(
 ): EndpointRoute[] {
     const { json = true, text = true, form = true, limit } = options
 
-    const bodyParserMiddleware: RequestMiddleware = async (req) => {
+    const bodyParserMiddleware: RequestMiddleware = async (ctx) => {
+        const req = ctx.req
         const contentType = req.headers.get("content-type") || ""
 
         try {

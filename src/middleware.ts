@@ -1,14 +1,6 @@
-import type { ResponseBuilder } from "./responseBuilder"
-import type { EndpointRoute, MergedRequestMiddleware, Request, RequestMiddleware } from "./types"
+import type { Context, EndpointRoute, RequestMiddleware, MergedRequestMiddleware } from "./types"
 import { PATH_CHARS } from "./path"
 
-
-
-/**
- * Unmerge multiple request middlewares into individual ones.
- * @param middlewares The middlewares to unmerge.
- * @returns An array of individual request middlewares.
- */
 export function unmergeRequestMiddleware(
     ...middlewares: RequestMiddleware[]
 ): RequestMiddleware[] {
@@ -24,19 +16,11 @@ export function unmergeRequestMiddleware(
         } else {
             foundMiddlewares.push(middleware)
         }
-
     }
 
     return foundMiddlewares
 }
 
-
-/**
- * Merge multiple request middlewares into a single one.
- * @param middlewares The middlewares to merge.
- * @returns A single middleware that calls all the given middlewares in order.
- *          If any of the middlewares returns a promise, its handles the rest middlewars async.
- */
 export function mergeRequestMiddlewares(
     ...middlewares: RequestMiddleware[]
 ): MergedRequestMiddleware | RequestMiddleware {
@@ -51,9 +35,10 @@ export function mergeRequestMiddlewares(
     const mergedAsync = async (
         initialDefIndex: number,
         promise: Promise<void | Response> | Response,
-        req: Request,
-        res: ResponseBuilder,
+        ctx: Context,
     ): Promise<Response | void> => {
+        const res = ctx.res
+        const req = ctx.req
         if (promise instanceof Response) {
             return promise
         }
@@ -62,53 +47,40 @@ export function mergeRequestMiddlewares(
             return result
         }
 
-        if (
-            res.submit === true ||
-            req.upgraded === true
-        ) {
+        if (res.submit === true || req.upgraded === true) {
             return
         }
 
         for (let i = initialDefIndex + 1; i < middlewares.length; i++) {
             const middleware = middlewares[i]
-            const p = middleware(req, res)
+            const p = middleware(ctx)
             if (p instanceof Response) {
                 return p
             }
-            if (
-                p &&
-                p.then != undefined
-            ) {
+            if (p && p.then != undefined) {
                 await p
             }
 
-            if (
-                (res.submit as boolean) === true ||
-                req.upgraded === true
-            ) {
+            if ((res.submit as boolean) === true || req.upgraded === true) {
                 return
             }
         }
     }
 
-    const baseMerged: RequestMiddleware = (req, res) => {
+    const baseMerged: RequestMiddleware = (ctx) => {
+        const res = ctx.res
+        const req = ctx.req
         for (let i = 0; i < middlewares.length; i++) {
             const middleware = middlewares[i]
-            const p = middleware(req, res)
+            const p = middleware(ctx)
             if (p instanceof Response) {
                 return p
             }
-            if (
-                p &&
-                p.then != undefined
-            ) {
-                return mergedAsync(i, p, req, res)
+            if (p && p.then != undefined) {
+                return mergedAsync(i, p, ctx)
             }
 
-            if (
-                res.submit === true ||
-                req.upgraded === true
-            ) {
+            if (res.submit === true || req.upgraded === true) {
                 return
             }
         }
@@ -119,15 +91,6 @@ export function mergeRequestMiddlewares(
     return merged
 }
 
-/**
- * Checks if the given middleware is a merged middleware.
- * Merged middlewares are created by {@link mergeRequestMiddlewares}.
- * They contain an array of middlewares in the `base` property.
- * This function checks if the `base` property is an array and
- * returns true if it is, false otherwise.
- * @param middleware The middleware to check.
- * @returns True if the middleware is a merged middleware, false otherwise.
- */
 export function isMergedRequestMiddleware(
     middleware: RequestMiddleware
 ): middleware is MergedRequestMiddleware {
@@ -138,15 +101,6 @@ export function isMergedRequestMiddleware(
     )
 }
 
-/**
- * Checks if two endpoint routes are mergeable.
- * The routes are mergeable if they have the same method and path.
- * The path is considered the same if the splitPath property is undefined for both routes or
- * if the splitPath property is defined for both routes and the joined string is the same.
- * @param route - The first route to check.
- * @param route2 - The second route to check.
- * @returns true if the routes are mergeable, false otherwise.
- */
 export function isMergeableEndpointRoute(
     route: EndpointRoute,
     route2: EndpointRoute,

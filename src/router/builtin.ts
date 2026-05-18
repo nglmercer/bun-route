@@ -22,7 +22,8 @@ export function ws(
     routes: EndpointRoute[],
     path: string
 ): EndpointRoute[] {
-    const wsMiddleware: RequestMiddleware = (req, res) => {
+    const wsMiddleware: RequestMiddleware = (ctx) => {
+        const req = ctx.req
         const createdAt = Date.now()
         const data: WebSocketData = {
             createdAt: createdAt,
@@ -58,7 +59,7 @@ export function redirect(
     perma: boolean = false,
 ): EndpointRoute[] {
     const redirectMiddleware: RequestMiddleware =
-        (_, res) => res.sendRedirect(redirectTarget, perma)
+        (ctx) => ctx.res.sendRedirect(redirectTarget, perma)
 
     routes.push({
         splitPath: splitRoutePath(path),
@@ -90,7 +91,9 @@ export function staticFiles(
     }
 
     const staticMiddleware: RequestMiddleware =
-        (req, res) => {
+        (ctx) => {
+            const req = ctx.req
+            const res = ctx.res
             if (req.path.endsWith(PATH_CHARS.SLASH + indexFile)) {
                 res.sendRedirect(
                     req.path.slice(0, -indexFile.length),
@@ -182,13 +185,15 @@ export function cookies(
 
     const cookiesMiddleware: RequestMiddleware =
         autoResponseHeaders ?
-            (req, res) => {
+            (ctx) => {
+                const req = ctx.req
+                const res = ctx.res
                 res.beforeSent(
                     (res) => storeCookies(req, res)
                 )
                 parseCookies(req)
             } :
-            (req) => parseCookies(req)
+            (ctx) => parseCookies(ctx.req)
 
     routes.push({
         splitPath: splitRoutePath(path),

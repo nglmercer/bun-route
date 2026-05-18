@@ -59,7 +59,9 @@ export function rateLimit(
     let lastCleanup = Date.now()
     const cleanupInterval = Math.max(windowMs, 60000)
 
-    const rateLimitMiddleware: RequestMiddleware = (req, res) => {
+    const rateLimitMiddleware: RequestMiddleware = (ctx) => {
+        const req = ctx.req
+        const res = ctx.res
         const now = Date.now()
 
         if (now - lastCleanup > cleanupInterval) {

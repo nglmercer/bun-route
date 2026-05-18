@@ -53,7 +53,9 @@ export function cors(
         preflightContinue = false,
     } = options
 
-    const corsMiddleware: RequestMiddleware = (req, res) => {
+    const corsMiddleware: RequestMiddleware = (ctx) => {
+        const req = ctx.req
+        const res = ctx.res
         const reqOrigin = req.headers.get("origin")
         const allowOrigin = getAllowOrigin(reqOrigin, options)
 

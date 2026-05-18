@@ -28,7 +28,8 @@ export function timeout(
         message = "Request timeout",
     } = options
 
-    const timeoutMiddleware: RequestMiddleware = (req, res) => {
+    const timeoutMiddleware: RequestMiddleware = (ctx) => {
+        const res = ctx.res
         const timer = setTimeout(() => {
             if (!res.submit) {
                 res.status(HTTP_STATUS.REQUEST_TIMEOUT).send(message)

@@ -27,7 +27,9 @@ export function requestId(
         generator = () => crypto.randomUUID(),
     } = options
 
-    const requestIdMiddleware: RequestMiddleware = (req, res) => {
+    const requestIdMiddleware: RequestMiddleware = (ctx) => {
+        const req = ctx.req
+        const res = ctx.res
         const existingId = req.headers.get(header.toLowerCase())
         const id = existingId || generator(req)
         req.id = id
