@@ -23,7 +23,7 @@ describe("Router", () => {
 
   test("use method adds middleware", () => {
     const router = new Router()
-    const handler: RequestMiddleware = () => {}
+    const handler: RequestMiddleware = () => { }
     router.use("GET", "/test", handler)
     expect(router.routes.length).toBe(1)
     expect(router.routes[0].method).toBe(HttpMethod.GET)
@@ -31,78 +31,78 @@ describe("Router", () => {
 
   test("use with * method adds ALL route", () => {
     const router = new Router()
-    const handler: RequestMiddleware = () => {}
+    const handler: RequestMiddleware = () => { }
     router.use("*", "/test", handler)
     expect(router.routes[0].method).toBe(HttpMethod.ALL)
   })
 
   test("get method adds GET route", () => {
     const router = new Router()
-    const handler: RequestMiddleware = () => {}
+    const handler: RequestMiddleware = () => { }
     router.get("/test", handler)
     expect(router.routes[0].method).toBe(HttpMethod.GET)
   })
 
   test("get with multiple handlers", () => {
     const router = new Router()
-    const handler1: RequestMiddleware = () => {}
-    const handler2: RequestMiddleware = () => {}
+    const handler1: RequestMiddleware = () => { }
+    const handler2: RequestMiddleware = () => { }
     router.get("/test", handler1, handler2)
     expect(router.routes.length).toBe(1)
   })
 
   test("post method adds POST route", () => {
     const router = new Router()
-    const handler: RequestMiddleware = () => {}
+    const handler: RequestMiddleware = () => { }
     router.post("/test", handler)
     expect(router.routes[0].method).toBe(HttpMethod.POST)
   })
 
   test("put method adds PUT route", () => {
     const router = new Router()
-    const handler: RequestMiddleware = () => {}
+    const handler: RequestMiddleware = () => { }
     router.put("/test", handler)
     expect(router.routes[0].method).toBe(HttpMethod.PUT)
   })
 
   test("delete method adds DELETE route", () => {
     const router = new Router()
-    const handler: RequestMiddleware = () => {}
+    const handler: RequestMiddleware = () => { }
     router.delete("/test", handler)
     expect(router.routes[0].method).toBe(HttpMethod.DELETE)
   })
 
   test("patch method adds PATCH route", () => {
     const router = new Router()
-    const handler: RequestMiddleware = () => {}
+    const handler: RequestMiddleware = () => { }
     router.patch("/test", handler)
     expect(router.routes[0].method).toBe(HttpMethod.PATCH)
   })
 
   test("trace method adds TRACE route", () => {
     const router = new Router()
-    const handler: RequestMiddleware = () => {}
+    const handler: RequestMiddleware = () => { }
     router.trace("/test", handler)
     expect(router.routes[0].method).toBe(HttpMethod.TRACE)
   })
 
   test("head method adds HEAD route", () => {
     const router = new Router()
-    const handler: RequestMiddleware = () => {}
+    const handler: RequestMiddleware = () => { }
     router.head("/test", handler)
     expect(router.routes[0].method).toBe(HttpMethod.HEAD)
   })
 
   test("connect method adds CONNECT route", () => {
     const router = new Router()
-    const handler: RequestMiddleware = () => {}
+    const handler: RequestMiddleware = () => { }
     router.connect("/test", handler)
     expect(router.routes[0].method).toBe(HttpMethod.CONNECT)
   })
 
   test("options method adds OPTIONS route", () => {
     const router = new Router()
-    const handler: RequestMiddleware = () => {}
+    const handler: RequestMiddleware = () => { }
     router.options("/test", handler)
     expect(router.routes[0].method).toBe(HttpMethod.OPTIONS)
   })
@@ -135,20 +135,6 @@ describe("Router", () => {
     expect(router.routes.length).toBeGreaterThanOrEqual(1)
   })
 
-  test("basicAuth method adds basic auth route", () => {
-    const router = new Router()
-    const validator = (u: string, p: string) => u === "user" && p === "pass"
-    router.basicAuth("GET", "/protected", validator)
-    expect(router.routes.length).toBe(1)
-  })
-
-  test("basicAuth with custom realm and charset", () => {
-    const router = new Router()
-    const validator = (u: string, p: string) => true
-    router.basicAuth("GET", "/protected", validator, "MyRealm", "UTF-8")
-    expect(router.routes.length).toBe(1)
-  })
-
   test("cookies method adds cookie parsing route", () => {
     const router = new Router()
     router.cookies("GET", "/", true)
@@ -175,7 +161,7 @@ describe("Router", () => {
 
   test("chaining methods return router instance", () => {
     const router = new Router()
-    const handler: RequestMiddleware = () => {}
+    const handler: RequestMiddleware = () => { }
     expect(router.get("/1", handler)).toBe(router)
     expect(router.post("/2", handler)).toBe(router)
     expect(router.put("/3", handler)).toBe(router)

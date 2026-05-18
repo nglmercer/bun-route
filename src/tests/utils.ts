@@ -103,7 +103,6 @@ export const createMockRes = (): ResponseBuilder => {
         unsetCookie: mock(function (this: any) { return res; }),
         sendRedirect: mock(function (this: any) { res.submit = true; }),
         sendRedirectCustom: mock(function (this: any) { res.submit = true; }),
-        sendBasicAuth: mock(function (this: any) { res.submit = true; }),
         reset: mock(function (this: any) { return res; }),
         build: mock(function (this: any) { return new Response(null); }),
         beforeSent: mock(function (this: any) { return res; }),

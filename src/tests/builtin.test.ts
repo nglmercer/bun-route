@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from "bun:test";
-import { ws, redirect, staticFiles, basicAuth, cookies } from "../router/builtin";
+import { ws, redirect, staticFiles, cookies } from "../router/builtin";
 import { parseHttpMethods } from "../method";
 import type { EndpointRoute } from "../types";
 import { createMockReq, createMockRes } from "./utils";
@@ -59,78 +59,6 @@ describe("builtin.redirect", () => {
     const req = createMockReq();
     routes[0].handler(req, res);
     expect(res.sendRedirect).toHaveBeenCalled();
-  });
-});
-
-describe("builtin.basicAuth", () => {
-  it("adds a basic auth route", () => {
-    const routes: EndpointRoute[] = [];
-    basicAuth(routes, "GET", "/protected", (u, p) => u === "user" && p === "pass");
-    expect(routes.length).toBe(1);
-    expect(routes[0].splitPath).toEqual(["protected"]);
-  });
-
-  it("sends basic auth header when no auth header", () => {
-    const routes: EndpointRoute[] = [];
-    basicAuth(routes, "GET", "/protected", () => true);
-    const res = createMockRes();
-    res.sendBasicAuth = mock(() => { });
-    const req = createMockReq();
-    routes[0].handler(req, res);
-    expect(res.sendBasicAuth).toHaveBeenCalled();
-  });
-
-  it("validates credentials correctly", () => {
-    const routes: EndpointRoute[] = [];
-    basicAuth(routes, "GET", "/protected", (u, p) => u === "admin" && p === "secret");
-    const res = createMockRes();
-    res.sendBasicAuth = mock(() => { });
-    const authValue = btoa("admin:secret");
-    const req = createMockReq({ headers: new Headers({ authorization: `Basic ${authValue}` }) });
-    routes[0].handler(req, res);
-    expect(res.sendBasicAuth).not.toHaveBeenCalled();
-  });
-
-  it("sends auth header on invalid credentials", () => {
-    const routes: EndpointRoute[] = [];
-    basicAuth(routes, "GET", "/protected", () => false);
-    const res = createMockRes();
-    res.sendBasicAuth = mock(() => { });
-    const authValue = btoa("user:wrong");
-    const req = createMockReq({ headers: new Headers({ authorization: `Basic ${authValue}` }) });
-    routes[0].handler(req, res);
-    expect(res.sendBasicAuth).toHaveBeenCalled();
-  });
-
-  it("sends auth header on unprocessable header (no space)", () => {
-    const routes: EndpointRoute[] = [];
-    basicAuth(routes, "GET", "/protected", () => true);
-    const res = createMockRes();
-    res.sendBasicAuth = mock(() => { });
-    const req = createMockReq({ headers: new Headers({ authorization: "Basic" }) });
-    routes[0].handler(req, res);
-    expect(res.sendBasicAuth).toHaveBeenCalledWith("Unprocessable authorization header", expect.anything(), expect.anything());
-  });
-
-  it("sends auth header on wrong schema", () => {
-    const routes: EndpointRoute[] = [];
-    basicAuth(routes, "GET", "/protected", () => true);
-    const res = createMockRes();
-    res.sendBasicAuth = mock(() => { });
-    const req = createMockReq({ headers: new Headers({ authorization: "Bearer token" }) });
-    routes[0].handler(req, res);
-    expect(res.sendBasicAuth).toHaveBeenCalledWith("Unprocessable basic auth schema", expect.anything(), expect.anything());
-  });
-
-  it("sends auth header on missing colon in credentials", () => {
-    const routes: EndpointRoute[] = [];
-    basicAuth(routes, "GET", "/protected", () => true);
-    const res = createMockRes();
-    res.sendBasicAuth = mock(() => { });
-    const authValue = btoa("nocolonhere");
-    const req = createMockReq({ headers: new Headers({ authorization: `Basic ${authValue}` }) });
-    routes[0].handler(req, res);
-    expect(res.sendBasicAuth).toHaveBeenCalledWith("Unprocessable basic auth credentials", expect.anything(), expect.anything());
   });
 });
 

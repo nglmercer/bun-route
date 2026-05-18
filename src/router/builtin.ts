@@ -3,7 +3,7 @@ import { join } from "path"
 import { splitRoutePath } from "../path"
 import { parseHttpMethods, HttpMethodString } from "../method"
 import { PATH_CHARS } from "../path"
-import { HTTP_STATUS, HTTP_HEADERS, RESPONSE_DEFAULTS } from "../responseBuilder"
+import { HTTP_STATUS } from "../responseBuilder"
 import type { EndpointRoute, RequestMiddleware, WebSocketData } from "../types"
 
 function generateETag(buffer: ArrayBuffer): string {
@@ -159,88 +159,6 @@ export function staticFiles(
         splitPath: splitRoutePath(path),
         method: parseHttpMethods("GET"),
         handler: staticMiddleware
-    })
-
-    return routes
-}
-
-/**
- * Register a basic auth middleware.
- * @param routes The routes array to add to
- * @param method The HTTP method(s) to match
- * @param path The path to protect with basic auth
- * @param validator The validator function that returns true if credentials are valid
- * @param realm The realm to display in the auth dialog
- * @param charset The charset to use for the auth header
- * @returns The updated routes array.
- */
-export function basicAuth(
-    routes: EndpointRoute[],
-    method: "*" | HttpMethodString,
-    path: string,
-    validator: ((username: string, password: string) => boolean),
-    realm: string = RESPONSE_DEFAULTS.REALM,
-    charset: string = RESPONSE_DEFAULTS.CHARSET,
-): EndpointRoute[] {
-    const basicAuthMiddleware: RequestMiddleware = (req, res) => {
-        const auth = req.headers.get(HTTP_HEADERS.AUTHORIZATION)
-        if (!auth) {
-            res.sendBasicAuth(
-                "Missing authorization header",
-                realm,
-                charset
-            )
-            return
-        }
-        let splitIndex = auth.indexOf(PATH_CHARS.SPACE)
-        if (splitIndex === -1) {
-            res.sendBasicAuth(
-                "Unprocessable authorization header",
-                realm,
-                charset
-            )
-            return
-        }
-
-        const schema = auth.slice(0, splitIndex)
-        if (schema !== "Basic") {
-            res.sendBasicAuth(
-                "Unprocessable basic auth schema",
-                realm,
-                charset
-            )
-            return
-        }
-
-        const credentials = atob(auth.slice(splitIndex + 1))
-
-        splitIndex = credentials.indexOf(":")
-        if (splitIndex === -1) {
-            res.sendBasicAuth(
-                "Unprocessable basic auth credentials",
-                realm,
-                charset
-            )
-            return
-        }
-
-        if (!validator(
-            credentials.slice(0, splitIndex),
-            credentials.slice(splitIndex + 1)
-        )) {
-            res.sendBasicAuth(
-                "Invalid credentials",
-                realm,
-                charset
-            )
-            return
-        }
-    }
-
-    routes.push({
-        splitPath: splitRoutePath(path),
-        method: parseHttpMethods(method),
-        handler: basicAuthMiddleware
     })
 
     return routes

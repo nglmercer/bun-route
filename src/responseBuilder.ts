@@ -391,28 +391,6 @@ export class ResponseBuilder {
     }
 
     /**
-     * Sets the status code to 401 and adds a basic auth `WWW-Authenticate` header.
-     * @param realm The realm to use for the header. Default is "User Visible Realm".
-     * @param charset The character set to use for the realm. Default is "UTF-8".
-     * @returns void because it is submitted to the client
-     */
-    sendBasicAuth(
-        bodyInit: BunBodyInit = null,
-        realm: string = RESPONSE_DEFAULTS.REALM,
-        charset: string = RESPONSE_DEFAULTS.CHARSET,
-    ): void {
-        this.reset()
-        this.statusCode = HTTP_STATUS.UNAUTHORIZED
-        this.setHeader(
-            HTTP_HEADERS.WWW_AUTHENTICATE,
-            'Basic realm="' + realm +
-            '", charset="' + charset + '"'
-        )
-        this.bodyInit = bodyInit
-        this.submit = true
-    }
-
-    /**
      * Clones the response builder.
      * @returns A new response builder instance with the same state
      */

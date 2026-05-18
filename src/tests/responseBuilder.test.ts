@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test"
-import { ResponseBuilder, HTTP_STATUS, HTTP_HEADERS, RESPONSE_DEFAULTS } from "../responseBuilder"
+import { ResponseBuilder, HTTP_STATUS, HTTP_HEADERS } from "../responseBuilder"
 
 describe("ResponseBuilder", () => {
   test("initial state is correct", () => {
@@ -83,18 +83,6 @@ describe("ResponseBuilder", () => {
     expect(res.headers).toContainEqual([HTTP_HEADERS.LOCATION, "/test"])
   })
 
-  test("sendBasicAuth sets 401 and header", () => {
-    const res = new ResponseBuilder()
-    res.sendBasicAuth("denied")
-    expect(res.submit).toBe(true)
-    expect(res.statusCode).toBe(HTTP_STATUS.UNAUTHORIZED)
-    expect(res.bodyInit).toBe("denied")
-    expect(res.headers).toContainEqual([
-      HTTP_HEADERS.WWW_AUTHENTICATE,
-      `Basic realm="${RESPONSE_DEFAULTS.REALM}", charset="${RESPONSE_DEFAULTS.CHARSET}"`
-    ])
-  })
-
   test("setCookie adds cookie header", () => {
     const res = new ResponseBuilder()
     res.setCookie("session", "abc", { HttpOnly: true, Path: "/" })
@@ -112,7 +100,7 @@ describe("ResponseBuilder", () => {
 
   test("beforeSent adds hook", () => {
     const res = new ResponseBuilder()
-    res.beforeSent(() => {})
+    res.beforeSent(() => { })
     expect(res.beforeSentHooks?.length).toBe(1)
   })
 
@@ -122,7 +110,7 @@ describe("ResponseBuilder", () => {
     res.beforeSent(() => { order.push(1) })
     res.beforeSent(() => { order.push(2) })
     await res.startBeforeSentHook()
-    expect(order).toEqual([2,1])
+    expect(order).toEqual([2, 1])
   })
 
   test("startBeforeSentHook handles async hooks", async () => {
@@ -131,7 +119,7 @@ describe("ResponseBuilder", () => {
     res.beforeSent(async () => { await new Promise(r => setTimeout(r, 10)); order.push(1) })
     res.beforeSent(() => { order.push(2) })
     await res.startBeforeSentHook()
-    expect(order).toEqual([2,1])
+    expect(order).toEqual([2, 1])
   })
 
   test("build creates Response", () => {

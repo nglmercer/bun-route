@@ -1,7 +1,7 @@
 import { type Server } from "bun"
 import type { Awaitable, BunRequestHandler, EndpointRoute, RequestMiddleware, WebSocketData, Request, MergedRequestMiddleware } from "./types"
 import { HttpMethodString, stringifyHttpMethods } from "./method"
-import { RESPONSE_DEFAULTS, ResponseBuilder, HTTP_STATUS } from "./responseBuilder"
+import { ResponseBuilder, HTTP_STATUS } from "./responseBuilder"
 import { splitRoutePath } from "./path"
 import { innerHandle } from "./router/handler"
 import { isMergedRequestMiddleware } from "./middleware"
@@ -24,7 +24,6 @@ import {
     ws as registerWs,
     redirect as registerRedirect,
     staticFiles as registerStatic,
-    basicAuth as registerBasicAuth,
     cookies as registerCookies,
 } from "./router/builtin"
 import { cors as registerCors, type CorsOptions } from "./router/cors"
@@ -410,17 +409,6 @@ export class Router {
         deepestLevel: number = 10,
     ): Router {
         registerStatic(this.routes, path, targetDir, indexFile, deepestLevel)
-        return this
-    }
-
-    basicAuth(
-        method: "*" | HttpMethodString,
-        path: string,
-        validator: ((username: string, password: string) => boolean),
-        realm: string = RESPONSE_DEFAULTS.REALM,
-        charset: string = RESPONSE_DEFAULTS.CHARSET,
-    ): Router {
-        registerBasicAuth(this.routes, method, path, validator, realm, charset)
         return this
     }
 
