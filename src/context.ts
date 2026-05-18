@@ -1,11 +1,11 @@
 import { ResponseBuilder, HTTP_STATUS } from "./responseBuilder"
-import type { Context as ContextInterface } from "./types"
+import type { Context as ContextInterface, Request as EnhancedRequest } from "./types"
 
 export class Context implements ContextInterface {
   private _data: Record<string, unknown> = {}
 
   constructor(
-    public readonly req: Request,
+    public readonly req: EnhancedRequest,
     public readonly res: ResponseBuilder,
   ) {}
 

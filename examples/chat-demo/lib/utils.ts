@@ -4,6 +4,7 @@ import { statSync, existsSync } from "fs"
 import type { FileInfo, OnlineUser } from "./interfaces"
 import { sessions, onlineUsers, userSockets, UPLOAD_DIR } from "./state"
 import { join } from "path"
+import { Context } from "@/src/index";
 
 // Utility: Generate random token
 export function generateToken(): string {
@@ -28,16 +29,16 @@ export function parseAuthHeader(req: Request): string | null {
 }
 
 // Utility: Check if user is authenticated
-export function requireAuth(req: Request, res: ResponseBuilder): string | false {
-    const token = parseAuthHeader(req)
+export function requireAuth(ctx: Context): string | false {
+    const token = parseAuthHeader(ctx.req)
     if (!token) {
-        res.status(401).send("Missing authorization token")
+        ctx.res.status(401).send("Missing authorization token")
         return false
     }
     const session = sessions.get(token)
     if (!session || session.expiresAt < Date.now()) {
         sessions.delete(token)
-        res.status(401).send("Invalid or expired token")
+        ctx.res.status(401).send("Invalid or expired token")
         return false
     }
     return session.username

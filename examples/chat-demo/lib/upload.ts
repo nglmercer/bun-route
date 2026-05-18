@@ -1,7 +1,5 @@
 import { Router } from "src/index";
-import type { Request } from "src/types";
 import type { FileInfo } from "./interfaces";
-import type { ResponseBuilder } from "src/index";
 import { existsSync, unlinkSync, readdirSync } from "fs";
 import { join } from "path";
 import { UPLOAD_DIR, MAX_FILE_SIZE } from "./state";
@@ -17,9 +15,9 @@ export function registerUploadRoutes(router: Router): void {
   });
 
   // Upload route — uses fileUpload middleware + named params
-  router.post("/upload", async (req: Request, res: ResponseBuilder) => {
-    if (!requireAuth(req, res)) return;
-
+  router.post("/upload", async (ctx) => {
+    const { req, res } = ctx;
+    if (!requireAuth(ctx)) return;
     // Get uploaded file using the new static helper
     const file = Router.getFile(req, "file");
 
@@ -63,8 +61,9 @@ export function registerUploadRoutes(router: Router): void {
   });
 
   // List uploaded files — uses req.query() for pagination
-  router.get("/files", (req: Request, res: ResponseBuilder) => {
-    if (!requireAuth(req, res)) return;
+  router.get("/files", (ctx) => {
+    const { req, res } = ctx;
+    if (!requireAuth(ctx)) return;
 
     try {
       const files = readdirSync(UPLOAD_DIR)
@@ -90,11 +89,15 @@ export function registerUploadRoutes(router: Router): void {
   });
 
   // Delete file — uses named params instead of wildcards
-  router.delete("/files/:filename", (req: Request, res: ResponseBuilder) => {
-    if (!requireAuth(req, res)) return;
+  router.delete("/files/:filename", (ctx) => {
+    const { req, res } = ctx;
+    if (!requireAuth(ctx)) return;
 
-    const params = req.pathParams as Record<string, string>;
-    const filename = params?.filename || "";
+    const filename = req.pathParam("filename").string();
+    if (!filename) {
+      res.status(400).send("Filename is required");
+      return;
+    }
     const filepath = join(UPLOAD_DIR, filename);
 
     if (!existsSync(filepath)) {
@@ -112,8 +115,9 @@ export function registerUploadRoutes(router: Router): void {
 }
 // Serve uploaded files — uses named params
 export function registerFileRoutes(router: Router): void {
-  router.get("/uploads/:filename", (req: Request, res: ResponseBuilder) => {
-    if (!requireAuth(req, res)) return;
+  router.get("/uploads/:filename", (ctx) => {
+    const { req, res } = ctx;
+    if (!requireAuth(ctx)) return;
 
     const params = req.pathParams as Record<string, string>;
     const filename = params?.filename || "";

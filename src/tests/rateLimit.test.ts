@@ -18,7 +18,7 @@ describe("rateLimit middleware", () => {
     const req = createMockReq({
       headers: new Headers({ "x-forwarded-for": "1.2.3.4" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.submit).toBe(false);
   });
 
@@ -29,7 +29,7 @@ describe("rateLimit middleware", () => {
     const req = createMockReq({
       headers: new Headers({ "x-forwarded-for": "1.2.3.4" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Limit", "10");
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Remaining", "9");
     expect(res.setHeader).toHaveBeenCalledWith(
@@ -70,7 +70,7 @@ describe("rateLimit middleware", () => {
     const req = createMockReq({
       headers: new Headers({ "x-real-ip": "5.6.7.8" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Limit", "1");
   });
 
@@ -85,7 +85,7 @@ describe("rateLimit middleware", () => {
     const req = createMockReq({
       headers: new Headers({ "x-api-key": "mykey123" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Limit", "1");
   });
 
@@ -120,7 +120,7 @@ describe("rateLimit middleware", () => {
     const req = createMockReq({
       headers: new Headers({ "x-forwarded-for": "1.2.3.4" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).not.toHaveBeenCalledWith(
       "X-RateLimit-Limit",
       expect.anything()
@@ -160,7 +160,7 @@ describe("rateLimit middleware", () => {
     const res = createMockRes();
     res.status = mock(function () { return res; }) as any;
     res.send = mock(function () { res.submit = true; }) as any;
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.send).toHaveBeenCalledWith("Slow down!");
   });
 });

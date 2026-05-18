@@ -36,7 +36,7 @@ function createAuth<T>(options: AuthOptions<T>): RequestMiddleware {
   const tokenPrefix = options.tokenPrefix ?? "Bearer "
   const optional = options.optional ?? false
 
-  return async (req, res) => {
+  return async ({ req, res }) => {
     const authHeader = req.headers.get(headerName)
     if (!authHeader) {
       if (optional) return
@@ -68,7 +68,7 @@ function createAuth<T>(options: AuthOptions<T>): RequestMiddleware {
 
 // --- 3. Role authorization middleware ---
 function requireRole(...roles: string[]): RequestMiddleware {
-  return (req, res) => {
+  return ({ req, res }) => {
     if (!req.user) {
       res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Authentication required" })
       return
@@ -99,10 +99,10 @@ const optionalAuth = createAuth({ verifyToken, tokenPrefix: "Bearer ", optional:
 const app = new Router()
 
 // Public
-app.get("/public", (req, res) => res.json({ message: "Public" }))
+app.get("/public", ({ req, res }) => res.json({ message: "Public" }))
 
 // Optional auth
-app.get("/feed", optionalAuth, (req, res) => {
+app.get("/feed", optionalAuth, ({ req, res }) => {
   if (req.user) {
     res.json({ message: `Personalized feed for ${req.user.username}` })
   } else {
@@ -111,22 +111,22 @@ app.get("/feed", optionalAuth, (req, res) => {
 })
 
 // Protected
-app.get("/profile", auth, (req, res) => {
+app.get("/profile", auth, ({ req, res }) => {
   res.json({ id: req.user!.id, username: req.user!.username, email: req.user!.email })
 })
 
 // Role-based
-app.get("/admin/users", auth, requireRole("admin"), (req, res) => {
+app.get("/admin/users", auth, requireRole("admin"), ({ req, res }) => {
   res.json({ message: "Admin panel" })
 })
 
-app.get("/dashboard", auth, requireRole("admin", "moderator"), (req, res) => {
+app.get("/dashboard", auth, requireRole("admin", "moderator"), ({ req, res }) => {
   res.json({ message: "Dashboard" })
 })
 
 // Global auth for /api/*
 app.use("*", "/api/*", auth)
-app.get("/api/posts", (req, res) => res.json({ message: `Posts for ${req.user!.id}` }))
+app.get("/api/posts", ({ req, res }) => res.json({ message: `Posts for ${req.user!.id}` }))
 
 // --- 7. Start server ---
 const server = Bun.serve({

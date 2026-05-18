@@ -3,7 +3,7 @@ import { Router } from "../src/index"
 const router = new Router()
 
 // handles GET requests to /
-router.get("/", (req, res) => {
+router.get("/", ({ req, res }) => {
     res.send("Root request")
 })
 

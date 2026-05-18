@@ -3,28 +3,28 @@ import { Router } from "../src/index"
 const router = new Router()
 
 // handles GET requests to /
-router.get("/", (req, res) => {
+router.get("/", ({ req, res }) => {
     res.send("Root request")
 })
 
 // needs one path param
 // try: /one/hello
 // try: /one (404)
-router.get("/one/*", (req, res) => {
+router.get("/one/*", ({ req, res }) => {
     res.send("one params: " + JSON.stringify(req.pathParams))
 })
 
 // needs two path param
 // try: /two/hello/world
 // try: /two/hello (404)
-router.get("/two/*/*", (req, res) => {
+router.get("/two/*/*", ({ req, res }) => {
     res.send("two params: " + JSON.stringify(req.pathParams))
 })
 
 // allows zero to unlimited path params
 // try: /multi/hello/world/my/good/friend
 // try: /multi (200)
-router.get("/multi/**", (req, res) => {
+router.get("/multi/**", ({ req, res }) => {
     res.send("multi params: " + JSON.stringify(req.pathParams))
 })
 
@@ -34,7 +34,7 @@ router.get("/multi/**", (req, res) => {
 // try: /mintwo/hello/world/my
 // try: /mintwo/hello/world
 // try: /mintwo/hello (404)
-router.get("/mintwo/*/*/**", (req, res) => {
+router.get("/mintwo/*/*/**", ({ req, res }) => {
     res.send("multi params: " + JSON.stringify(req.pathParams))
 })
 

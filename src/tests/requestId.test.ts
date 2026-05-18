@@ -17,7 +17,7 @@ describe("requestId middleware", () => {
     requestId(routes, "*", "/api");
     const res = createMockRes();
     const req = createMockReq();
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(req.id).toBeDefined();
     expect(typeof req.id).toBe("string");
     expect(req.id!.length).toBeGreaterThan(0);
@@ -28,7 +28,7 @@ describe("requestId middleware", () => {
     requestId(routes, "*", "/api");
     const res = createMockRes();
     const req = createMockReq();
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith("X-Request-Id", req.id);
   });
 
@@ -39,7 +39,7 @@ describe("requestId middleware", () => {
     const req = createMockReq({
       headers: new Headers({ "x-request-id": "my-custom-id" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(req.id).toBe("my-custom-id");
   });
 
@@ -48,7 +48,7 @@ describe("requestId middleware", () => {
     requestId(routes, "*", "/api", { header: "X-Correlation-Id" });
     const res = createMockRes();
     const req = createMockReq();
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith("X-Correlation-Id", req.id);
   });
 
@@ -59,7 +59,7 @@ describe("requestId middleware", () => {
     });
     const res = createMockRes();
     const req = createMockReq();
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(req.id).toBe("fixed-id-123");
   });
 
@@ -70,7 +70,7 @@ describe("requestId middleware", () => {
     const req = createMockReq({
       headers: new Headers({ "X-REQUEST-ID": "case-test" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(req.id).toBe("case-test");
   });
 

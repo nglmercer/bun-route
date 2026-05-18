@@ -3,7 +3,10 @@ import { bodyParser } from "../router/bodyParser";
 import { parseHttpMethods } from "../method";
 import type { EndpointRoute } from "../types";
 import { createMockReq, createMockRes } from "./utils";
-
+import { Context } from "../context";
+const res = createMockRes();
+const req = createMockReq();
+const ctx = new Context(req, res);
 describe("bodyParser middleware", () => {
   it("adds a body parser route", () => {
     const routes: EndpointRoute[] = [];
@@ -15,7 +18,6 @@ describe("bodyParser middleware", () => {
   it("parses JSON body", async () => {
     const routes: EndpointRoute[] = [];
     bodyParser(routes, "POST", "/api");
-    const res = createMockRes();
     const body = JSON.stringify({ name: "test", value: 42 });
     let selfRef: any;
     const req = createMockReq({
@@ -25,14 +27,14 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(req, res);
+    await routes[0].handler(ctx);
     expect(req.parsedBody).toEqual({ name: "test", value: 42 });
   });
 
   it("parses form-urlencoded body", async () => {
     const routes: EndpointRoute[] = [];
     bodyParser(routes, "POST", "/api");
-    const res = createMockRes();
+
     const body = "name=test&value=42";
     let selfRef: any;
     const req = createMockReq({
@@ -42,14 +44,14 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(req, res);
+    await routes[0].handler(ctx);
     expect(req.parsedBody).toEqual({ name: "test", value: "42" });
   });
 
   it("parses text body", async () => {
     const routes: EndpointRoute[] = [];
     bodyParser(routes, "POST", "/api");
-    const res = createMockRes();
+
     const body = "plain text content";
     let selfRef: any;
     const req = createMockReq({
@@ -59,14 +61,14 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(req, res);
+    await routes[0].handler(ctx);
     expect(req.parsedBody).toBe("plain text content");
   });
 
   it("handles invalid JSON gracefully", async () => {
     const routes: EndpointRoute[] = [];
     bodyParser(routes, "POST", "/api");
-    const res = createMockRes();
+
     let selfRef: any;
     const req = createMockReq({
       method: "POST",
@@ -75,14 +77,14 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(req, res);
+    await routes[0].handler(ctx);
     expect(req.parsedBody).toBeUndefined();
   });
 
   it("does not parse when json option is false", async () => {
     const routes: EndpointRoute[] = [];
     bodyParser(routes, "POST", "/api", { json: false, text: false, form: false });
-    const res = createMockRes();
+
     let selfRef: any;
     const req = createMockReq({
       method: "POST",
@@ -91,14 +93,14 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(req, res);
+    await routes[0].handler(ctx);
     expect(req.parsedBody).toBeUndefined();
   });
 
   it("does not parse when text option is false", async () => {
     const routes: EndpointRoute[] = [];
     bodyParser(routes, "POST", "/api", { text: false, json: false, form: false });
-    const res = createMockRes();
+
     let selfRef: any;
     const req = createMockReq({
       method: "POST",
@@ -107,14 +109,14 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(req, res);
+    await routes[0].handler(ctx);
     expect(req.parsedBody).toBeUndefined();
   });
 
   it("does not parse when form option is false", async () => {
     const routes: EndpointRoute[] = [];
     bodyParser(routes, "POST", "/api", { form: false, json: false, text: false });
-    const res = createMockRes();
+
     let selfRef: any;
     const req = createMockReq({
       method: "POST",
@@ -123,14 +125,14 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(req, res);
+    await routes[0].handler(ctx);
     expect(req.parsedBody).toBeUndefined();
   });
 
   it("respects limit option for JSON", async () => {
     const routes: EndpointRoute[] = [];
     bodyParser(routes, "POST", "/api", { limit: 5 });
-    const res = createMockRes();
+
     let selfRef: any;
     const req = createMockReq({
       method: "POST",
@@ -139,7 +141,7 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(req, res);
+    await routes[0].handler(ctx);
     // Truncated JSON should fail to parse
     expect(req.parsedBody).toBeUndefined();
   });
@@ -147,7 +149,7 @@ describe("bodyParser middleware", () => {
   it("respects limit option for text", async () => {
     const routes: EndpointRoute[] = [];
     bodyParser(routes, "POST", "/api", { limit: 5 });
-    const res = createMockRes();
+
     let selfRef: any;
     const req = createMockReq({
       method: "POST",
@@ -156,7 +158,7 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(req, res);
+    await routes[0].handler(ctx);
     expect(req.parsedBody).toBe("hello");
   });
 
@@ -170,7 +172,7 @@ describe("bodyParser middleware", () => {
   it("handles missing content-type as text", async () => {
     const routes: EndpointRoute[] = [];
     bodyParser(routes, "POST", "/api");
-    const res = createMockRes();
+
     let selfRef: any;
     const req = createMockReq({
       method: "POST",
@@ -179,7 +181,7 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(req, res);
+    await routes[0].handler(ctx);
     expect(req.parsedBody).toBe("fallback text");
   });
 });

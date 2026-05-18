@@ -1,6 +1,5 @@
 import { Router } from "src/index";
-import type { Request } from "src/types";
-import type { ResponseBuilder } from "src/index";
+import { Context } from "@/src/index";
 import type { WebSocketData } from "src/types";
 import type { ChatMessage } from "./interfaces";
 import { sessions, chatMessages, onlineUsers, userSockets } from "./state";
@@ -14,13 +13,13 @@ import {
 
 // Chat API routes
 export function registerChatRoutes(router: Router): void {
-  router.get("/chat/messages", (req: Request, res: ResponseBuilder) => {
-    const username = requireAuth(req, res);
+  router.get("/chat/messages", (ctx: Context) => {
+    const username = requireAuth(ctx);
     if (!username) return;
 
     const url = new URL(
-      req.url || "",
-      `http://${req.headers.get("host") || "localhost"}`,
+      ctx.req.url || "",
+      `http://${ctx.req.headers.get("host") || "localhost"}`,
     );
     const limit = parseInt(url.searchParams.get("limit") || "50");
     const before = url.searchParams.get("before");
@@ -32,14 +31,14 @@ export function registerChatRoutes(router: Router): void {
     }
 
     messages = messages.slice(-limit);
-    sendJson(res, messages);
+    sendJson(ctx.res, messages);
   });
 
-  router.get("/chat/online", (req: Request, res: ResponseBuilder) => {
-    const username = requireAuth(req, res);
+  router.get("/chat/online", (ctx: Context) => {
+    const username = requireAuth(ctx);
     if (!username) return;
 
-    sendJson(res, getOnlineUsersList());
+    sendJson(ctx.res, getOnlineUsersList());
   });
 }
 

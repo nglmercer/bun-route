@@ -19,7 +19,7 @@ describe("cors middleware", () => {
     const req = createMockReq({
       headers: new Headers({ origin: "http://example.com" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith(
       "Access-Control-Allow-Origin",
       "*"
@@ -31,7 +31,7 @@ describe("cors middleware", () => {
     cors(routes, "*", "/api");
     const res = createMockRes();
     const req = createMockReq({ headers: new Headers() });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     // When no origin header, getAllowOrigin returns undefined, so no header is set
     expect(res.setHeader).not.toHaveBeenCalledWith(
       "Access-Control-Allow-Origin",
@@ -46,7 +46,7 @@ describe("cors middleware", () => {
     const req = createMockReq({
       headers: new Headers({ origin: "http://example.com" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith(
       "Access-Control-Allow-Origin",
       "http://example.com"
@@ -60,7 +60,7 @@ describe("cors middleware", () => {
     const req = createMockReq({
       headers: new Headers({ origin: "http://evil.com" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).not.toHaveBeenCalledWith(
       "Access-Control-Allow-Origin",
       expect.anything()
@@ -74,7 +74,7 @@ describe("cors middleware", () => {
     const req = createMockReq({
       headers: new Headers({ origin: "http://b.com" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith(
       "Access-Control-Allow-Origin",
       "http://b.com"
@@ -88,7 +88,7 @@ describe("cors middleware", () => {
     const req = createMockReq({
       headers: new Headers({ origin: "http://example.com" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith(
       "Access-Control-Allow-Credentials",
       "true"
@@ -102,7 +102,7 @@ describe("cors middleware", () => {
     const req = createMockReq({
       headers: new Headers({ origin: "http://example.com" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith(
       "Access-Control-Expose-Headers",
       "X-Custom, X-Other"
@@ -124,7 +124,7 @@ describe("cors middleware", () => {
       headers: new Headers({ origin: "http://example.com" })
     });
     (req as any).httpMethod = HttpMethod.OPTIONS;
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     const calls = (res.setHeader as any).mock.calls;
     expect(calls).toContainEqual(["Access-Control-Allow-Origin", "*"]);
     expect(calls).toContainEqual(["Access-Control-Allow-Methods", "GET, POST"]);
@@ -146,7 +146,7 @@ describe("cors middleware", () => {
       })
     });
     (req as any).httpMethod = HttpMethod.OPTIONS;
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     const calls = (res.setHeader as any).mock.calls;
     expect(calls).toContainEqual(["Access-Control-Allow-Headers", "X-Custom-Header"]);
   });
@@ -162,7 +162,7 @@ describe("cors middleware", () => {
       headers: new Headers({ origin: "http://example.com" })
     });
     (req as any).httpMethod = HttpMethod.OPTIONS;
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     // Should NOT call send because preflightContinue is true
     expect(res.send).not.toHaveBeenCalled();
   });
@@ -178,7 +178,7 @@ describe("cors middleware", () => {
       headers: new Headers({ origin: "http://example.com" })
     });
     (req as any).httpMethod = HttpMethod.OPTIONS;
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     const calls = (res.setHeader as any).mock.calls;
     expect(calls).toContainEqual(["Access-Control-Allow-Methods", "GET, HEAD, PUT, PATCH, POST, DELETE"]);
   });
@@ -192,7 +192,7 @@ describe("cors middleware", () => {
     const req = createMockReq({
       headers: new Headers({ origin: "http://sub.example.com" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith(
       "Access-Control-Allow-Origin",
       "http://sub.example.com"
@@ -208,7 +208,7 @@ describe("cors middleware", () => {
     const req = createMockReq({
       headers: new Headers({ origin: "http://evil.com" })
     });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.setHeader).not.toHaveBeenCalledWith(
       "Access-Control-Allow-Origin",
       expect.anything()

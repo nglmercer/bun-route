@@ -21,7 +21,7 @@ describe("builtin.ws", () => {
       upgraded: false as true
     });
     const res = createMockRes();
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(req.upgraded).toBe(true);
     expect(upgradeMock).toHaveBeenCalled();
   });
@@ -45,7 +45,7 @@ describe("builtin.redirect", () => {
       expect(perma).toBe(false);
     });
     const req = createMockReq();
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.sendRedirect).toHaveBeenCalled();
   });
 
@@ -57,7 +57,7 @@ describe("builtin.redirect", () => {
       expect(perma).toBe(true);
     });
     const req = createMockReq();
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.sendRedirect).toHaveBeenCalled();
   });
 });
@@ -85,7 +85,7 @@ describe("builtin.cookies", () => {
     const res = createMockRes();
     //@ts-expect-error
     res.beforeSent = mock((cb: (res: Response) => void) => { cb(res); });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.beforeSent).toHaveBeenCalled();
     expect(req.cookies).toEqual({ a: "1" });
   });
@@ -109,7 +109,7 @@ describe("builtin.staticFiles", () => {
     const res = createMockRes();
     res.sendRedirect = mock(() => { });
     const req = createMockReq({ path: "/static/index.html" });
-    routes[0].handler(req, res);
+    routes[0].handler({ req, res });
     expect(res.sendRedirect).toHaveBeenCalledWith("/static/", true);
   });
 
@@ -118,7 +118,7 @@ describe("builtin.staticFiles", () => {
     staticFiles(routes, "/static", __dirname, "index.html", 2);
     const req = createMockReq({ path: "/static/a/b/c", splitPath: ["static", "a", "b", "c"] });
     const res = createMockRes();
-    const result = routes[0].handler(req, res);
+    const result = routes[0].handler({ req, res });
     expect(result).toBeUndefined();
   });
 
@@ -131,7 +131,7 @@ describe("builtin.staticFiles", () => {
       pathParams: ["builtin.test.ts"]  // ← was [], needs the filename
     });
     const res = createMockRes();
-    await routes[0].handler(req, res);
+    await routes[0].handler({ req, res });
     expect(res.send).toHaveBeenCalled();
   });
 
@@ -140,7 +140,7 @@ describe("builtin.staticFiles", () => {
     staticFiles(routes, "/static", __dirname);
     const req = createMockReq({ path: "/static/does-not-exist.txt", splitPath: ["static", "does-not-exist.txt"], pathParams: [] });
     const res = createMockRes();
-    await routes[0].handler(req, res);
+    await routes[0].handler({ req, res });
     expect(res.status).toHaveBeenCalledWith(404);
   });
 });

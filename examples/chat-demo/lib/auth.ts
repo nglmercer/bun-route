@@ -1,12 +1,10 @@
 import { Router } from "src/index";
-import type { Request } from "src/types";
-import type { ResponseBuilder } from "src/index";
 import { sessions, users } from "./state";
 import { generateToken, parseAuthHeader, sendJson } from "./utils";
 
 // Auth routes
 export function registerAuthRoutes(router: Router): void {
-  router.post("/login", async (req: Request, res: ResponseBuilder) => {
+  router.post("/login", async ({ req, res }) => {
     try {
       const body = (await req.json()) as { username: string; password: string };
       const user = users.find(
@@ -31,7 +29,7 @@ export function registerAuthRoutes(router: Router): void {
     }
   });
 
-  router.get("/me", (req: Request, res: ResponseBuilder) => {
+  router.get("/me", ({ res, req }) => {
     const token = parseAuthHeader(req);
     if (!token) {
       res.status(401).send("Missing authorization token");
@@ -45,7 +43,7 @@ export function registerAuthRoutes(router: Router): void {
     sendJson(res, { username: session.username });
   });
 
-  router.post("/logout", (req: Request, res: ResponseBuilder) => {
+  router.post("/logout", ({ res, req }) => {
     const token = parseAuthHeader(req);
     if (token) sessions.delete(token);
     sendJson(res, { message: "Logged out" });

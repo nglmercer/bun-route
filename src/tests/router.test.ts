@@ -16,7 +16,7 @@ describe("Router", () => {
 
   test("request method sends request to router", async () => {
     const router = new Router()
-    router.get("/test", (req, res) => { res.send("hello") })
+    router.get("/test", (ctx) => { ctx.res.send("hello") })
     const res = await router.request("http://localhost/test")
     expect(await res.text()).toBe("hello")
   })
@@ -149,7 +149,7 @@ describe("Router", () => {
 
   test("dump method returns string", () => {
     const router = new Router()
-    router.get("/test", (req, res) => { res.send("test") })
+    router.get("/test", ({ req, res }) => { res.send("test") })
     const dump = router.dump()
     expect(typeof dump).toBe("string")
   })
@@ -175,7 +175,7 @@ describe("Router", () => {
 
   test("request with POST method", async () => {
     const router = new Router()
-    router.post("/test", (req, res) => { res.send("posted") })
+    router.post("/test", ({ req, res }) => { res.send("posted") })
     const res = await router.request("http://localhost/test", { method: "POST" })
     expect(await res.text()).toBe("posted")
   })

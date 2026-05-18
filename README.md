@@ -71,7 +71,7 @@ import { Router } from "bun-route";
 const router = new Router()
 
 // handles GET requests to /
-router.get("/", (req, res) => {
+router.get("/", ({req,res}) => {
     res.send("Root request")
 })
 

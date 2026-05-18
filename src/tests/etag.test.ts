@@ -32,7 +32,7 @@ describe("staticFiles with ETag", () => {
       pathParams: ["test.txt"]
     });
     const res = createMockRes();
-    await routes[0].handler(req, res);
+    await routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith("ETag", expect.stringMatching(/^".*"$/));
     cleanupTestDir();
   });
@@ -47,7 +47,7 @@ describe("staticFiles with ETag", () => {
       pathParams: ["test.txt"]
     });
     const res = createMockRes();
-    await routes[0].handler(req, res);
+    await routes[0].handler({ req, res });
     expect(res.setHeader).toHaveBeenCalledWith("Cache-Control", "public, max-age=0");
     cleanupTestDir();
   });
@@ -56,7 +56,7 @@ describe("staticFiles with ETag", () => {
     setupTestDir();
     const routes: EndpointRoute[] = [];
     staticFiles(routes, "/static", TEST_DIR);
-    
+
     // First request to get the ETag
     const req1 = createMockReq({
       path: "/static/test.txt",
@@ -65,13 +65,13 @@ describe("staticFiles with ETag", () => {
     });
     const res1 = createMockRes();
     await routes[0].handler(req1, res1);
-    
+
     // Get the ETag from the setHeader calls
     const etagCall = (res1.setHeader as any).mock.calls.find(
       (c: any[]) => c[0] === "ETag"
     );
     const etag = etagCall ? etagCall[1] : null;
-    
+
     // Second request with If-None-Match
     if (etag) {
       const req2 = createMockReq({
@@ -86,7 +86,7 @@ describe("staticFiles with ETag", () => {
       await routes[0].handler(req2, res2);
       expect(res2.status).toHaveBeenCalledWith(304);
     }
-    
+
     cleanupTestDir();
   });
 
@@ -101,7 +101,7 @@ describe("staticFiles with ETag", () => {
       headers: new Headers({ "if-none-match": "\"wrong-etag\"" })
     });
     const res = createMockRes();
-    await routes[0].handler(req, res);
+    await routes[0].handler({ req, res });
     // Should still send the file (not 304)
     expect(res.status).not.toHaveBeenCalledWith(304);
     cleanupTestDir();
@@ -111,7 +111,7 @@ describe("staticFiles with ETag", () => {
     setupTestDir();
     const routes: EndpointRoute[] = [];
     staticFiles(routes, "/static", TEST_DIR);
-    
+
     const req1 = createMockReq({
       path: "/static/test.txt",
       splitPath: ["static", "test.txt"],
@@ -119,7 +119,7 @@ describe("staticFiles with ETag", () => {
     });
     const res1 = createMockRes();
     await routes[0].handler(req1, res1);
-    
+
     const req2 = createMockReq({
       path: "/static/test.txt",
       splitPath: ["static", "test.txt"],
@@ -127,14 +127,14 @@ describe("staticFiles with ETag", () => {
     });
     const res2 = createMockRes();
     await routes[0].handler(req2, res2);
-    
+
     const etag1 = (res1.setHeader as any).mock.calls.find(
       (c: any[]) => c[0] === "ETag"
     )?.[1];
     const etag2 = (res2.setHeader as any).mock.calls.find(
       (c: any[]) => c[0] === "ETag"
     )?.[1];
-    
+
     expect(etag1).toBe(etag2);
     cleanupTestDir();
   });

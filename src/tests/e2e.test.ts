@@ -8,23 +8,23 @@ function avarage(array: number[]) {
 describe("e2e router tests", () => {
   const router = new Router()
 
-  router.get("/", (req, res) => {
+  router.get("/", ({ req, res }) => {
     res.send("willkommen auf majos pimmel insel!")
   })
 
-  router.get("/test", (req, res) => {
+  router.get("/test", ({ req, res }) => {
     res.send("test!")
   })
 
-  router.get("/test/test", async (req, res) => {
+  router.get("/test/test", async ({ req, res }) => {
     res.send("test!")
   })
 
-  router.get("/test/**", (req, res) => {
+  router.get("/test/**", ({ req, res }) => {
     res.send("test 2!")
   })
 
-  router.get("/ramon/*/*/*", (req, res) => {
+  router.get("/ramon/*/*/*", ({ req, res }) => {
     res.send("ramon!")
   })
 

@@ -76,7 +76,8 @@ export function fileUpload(
 ): EndpointRoute[] {
     const { maxSize, allowedTypes } = options
 
-    const fileUploadMiddleware: RequestMiddleware = async (req) => {
+    const fileUploadMiddleware: RequestMiddleware = async (ctx) => {
+        const req = ctx.req
         const contentType = req.headers.get("content-type") || ""
 
         if (!contentType.includes("multipart/form-data")) {

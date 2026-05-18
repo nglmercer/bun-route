@@ -1,5 +1,5 @@
 import { type Server } from "bun"
-import type { Awaitable, BunRequestHandler, EndpointRoute, RequestMiddleware, WebSocketData, Request, MergedRequestMiddleware } from "./types"
+import type { Awaitable, BunRequestHandler, EndpointRoute, RequestMiddleware, WebSocketData, Request, MergedRequestMiddleware, Context } from "./types"
 import { HttpMethodString, stringifyHttpMethods } from "./method"
 import { ResponseBuilder, HTTP_STATUS } from "./responseBuilder"
 import { splitRoutePath } from "./path"
@@ -33,7 +33,7 @@ import { requestId as registerRequestId, type RequestIdOptions } from "./router/
 import { timeout as registerTimeout, type TimeoutOptions } from "./router/timeout"
 import { fileUpload as registerFileUpload, type FileUploadOptions, getFile, getFiles, getFileFieldNames, getFormFields } from "./router/fileUpload"
 
-export type ErrorHandler = (err: Error, req: Request, res: ResponseBuilder) => Awaitable<void>
+export type ErrorHandler = (err: Error, ctx: Context) => Awaitable<void>
 
 /**
  * ## Simple Router
@@ -146,7 +146,8 @@ export class Router {
                 return (result as Promise<Response>).catch((err: Error) => {
                     if (this.errorHandler) {
                         const res = new ResponseBuilder()
-                        const p = this.errorHandler(err, request as unknown as Request, res)
+                        const ctx = { req: request, res } as Context
+                        const p = this.errorHandler(err, ctx)
                         if (p && typeof (p as any).then === "function") {
                             return (p as Promise<void>).then(() => res.build())
                         }
@@ -161,7 +162,8 @@ export class Router {
         } catch (err) {
             if (this.errorHandler) {
                 const res = new ResponseBuilder()
-                const p = this.errorHandler(err as Error, request as unknown as Request, res)
+                const ctx = { req: request, res } as Context
+                const p = this.errorHandler(err as Error, ctx)
                 if (p && typeof (p as any).then === "function") {
                     return (p as Promise<void>).then(() => res.build())
                 }

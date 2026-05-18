@@ -4,7 +4,7 @@ import { Router } from "../router";
 describe("router.request", () => {
     it("should handle request with string url", async () => {
         const router = new Router();
-        router.get("/hello", (req, res) => {
+        router.get("/hello", ({ req, res }) => {
             res.send("world");
         });
 
@@ -15,7 +15,7 @@ describe("router.request", () => {
 
     it("should handle request with string url and options", async () => {
         const router = new Router();
-        router.post("/data", async (req, res) => {
+        router.post("/data", async ({ req, res }) => {
             const body = await req.json();
             res.setHeader("Content-Type", "application/json").send(JSON.stringify({ received: body.value }));
         });
@@ -34,7 +34,7 @@ describe("router.request", () => {
 
     it("should handle request with Request object", async () => {
         const router = new Router();
-        router.get("/direct", (req, res) => {
+        router.get("/direct", ({ req, res }) => {
             res.send("direct object");
         });
 

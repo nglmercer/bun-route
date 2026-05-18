@@ -1,6 +1,4 @@
 import { Router } from "src/index"
-import type { Request } from "src/types"
-import type { ResponseBuilder } from "src/index"
 import { registerAuthRoutes } from "./lib/auth"
 import { registerUploadRoutes, registerFileRoutes } from "./lib/upload"
 import { registerChatRoutes, getWebSocketHandlers } from "./lib/chat"
@@ -8,7 +6,7 @@ import type { ApiInfo } from "./lib/interfaces"
 const router = new Router()
 
 // Error handler — catches all unhandled errors
-router.onError((err, req, res) => {
+router.onError((err, { req, res }) => {
     console.error(`[ERROR] ${req.httpMethod} ${req.path}:`, err.message)
     return res.json({
         error: "Internal server error",
@@ -27,7 +25,7 @@ router.cors("*", "/**", {
 })
 
 // Logging middleware — uses req.ip and req.path directly
-router.use("*", "/**", (req: Request, res: ResponseBuilder) => {
+router.use("*", "/**", ({ req, res }) => {
     const timestamp = new Date().toISOString()
     const method = req.method
     const ip = req.ip
@@ -53,16 +51,17 @@ router.static("/css/**", import.meta.dir + "/css")
 router.static("/html/**", import.meta.dir + "/html")
 
 // Serve index page
-router.get("/", (_: Request, res: ResponseBuilder) => {
+router.get("/", ({ res }) => {
     res.file(Bun.file(import.meta.dir + "/html/index.html"))
 })
+
 router.group("/api", (_router) => {
     registerAuthRoutes(_router)
     registerUploadRoutes(_router)
     registerChatRoutes(_router)
 
     // Demo info route — uses req.query() for filtering
-    router.get("/api/info", (req: Request, res: ResponseBuilder) => {
+    router.get("/api/info", ({ req, res }) => {
         // getRoutes() now excludes middleware routes by default
         const endpoints = router.getRoutes()
 
