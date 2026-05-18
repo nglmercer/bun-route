@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 import { staticFiles } from "../router/builtin";
 import type { EndpointRoute } from "../types";
-import { createMockReq, createMockRes } from "./utils";
+import { createMockReq, createMockRes, calls } from "./utils";
 import { mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import { Context } from "../context";
@@ -71,8 +71,8 @@ describe("staticFiles with ETag", () => {
     await routes[0].handler(ctx1);
 
     // Get the ETag from the setHeader calls
-    const etagCall = (res1.setHeader as any).mock.calls.find(
-      (c: [string, string]) => c[0] === "ETag"
+    const etagCall = calls(res1.setHeader).find(
+      (c) => c[0] === "ETag"
     );
     const etag = etagCall ? etagCall[1] : null;
 
@@ -136,11 +136,11 @@ describe("staticFiles with ETag", () => {
     const ctx2 = new Context(req2, res2);
     await routes[0].handler(ctx2);
 
-    const etag1 = (res1.setHeader as any).mock.calls.find(
-      (c: [string, string]) => c[0] === "ETag"
+    const etag1 = calls(res1.setHeader).find(
+      (c) => c[0] === "ETag"
     )?.[1];
-    const etag2 = (res2.setHeader as any).mock.calls.find(
-      (c: [string, string]) => c[0] === "ETag"
+    const etag2 = calls(res2.setHeader).find(
+      (c) => c[0] === "ETag"
     )?.[1];
 
     expect(etag1).toBe(etag2);

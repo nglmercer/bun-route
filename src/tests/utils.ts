@@ -25,6 +25,20 @@ function tracked<T extends (...args: any[]) => any>(fn: T): TrackedFn<T> {
   return m;
 }
 
+/**
+ * Type-safe accessor for tracked mock call data.
+ * No `as any` needed at the call site.
+ *
+ * @example
+ *   const etagCall = calls(res.setHeader).find(c => c[0] === "ETag");
+ *   expect(calls(res.setHeader)).toContainEqual(["X-Foo", "bar"]);
+ */
+export function calls<T extends (...args: any[]) => any>(
+  fn: T,
+): Array<Parameters<T>> {
+  return (fn as unknown as { calls?: Array<Parameters<T>> }).calls ?? [];
+}
+
 // ─── Events ───────────────────────────────────────────────────────────
 
 export interface MockResponseEventMap {

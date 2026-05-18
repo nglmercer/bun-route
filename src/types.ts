@@ -70,6 +70,24 @@ export interface CookieOptions {
   SameSite?: "Strict" | "Lax" | "None";
 }
 
+/**
+ * Extensible data map for per-request context storage.
+ * Augment this interface to get auto-inferred types for ctx.get / ctx.set.
+ *
+ * @example
+ *   declare module "bun-route" {
+ *     interface ContextDataMap {
+ *       user: { id: string; role: "admin" | "user" }
+ *     }
+ *   }
+ *
+ *   ctx.set("user", { id: "1", role: "admin" }) // type-checked
+ *   const user = ctx.get("user")                // UserData | undefined
+ */
+export interface ContextDataMap {
+  [key: string]: unknown;
+}
+
 // Forward-declare Context to avoid circular imports.
 // The actual class is in ./context.ts and extends this.
 export interface Context {
@@ -81,7 +99,9 @@ export interface Context {
   readonly headers: Headers;
   readonly path: string;
 
+  set<K extends keyof ContextDataMap>(key: K, value: ContextDataMap[K]): void;
   set(key: string, value: unknown): void;
+  get<K extends keyof ContextDataMap>(key: K): ContextDataMap[K] | undefined;
   get<T = unknown>(key: string): T;
   status(code: number): this;
   json(data: unknown, code?: number): void;

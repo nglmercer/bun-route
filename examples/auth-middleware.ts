@@ -1,29 +1,34 @@
 /**
  * Example: Auth Middleware with bun-route
- * 
+ *
  * Shows how to implement authentication and role-based authorization
- * as a user of the bun-route library.
- * 
+ * using ContextDataMap augmentation — ctx.get("user") infers UserData
+ * automatically, no generics needed at the call site.
+ *
  * Run: bun run examples/auth-middleware.ts
  */
 
 import { Router } from "../src/router"
-import type { RequestMiddleware, Request } from "../src/types"
+import type { RequestMiddleware } from "../src/types"
 import { HTTP_STATUS } from "../src/responseBuilder"
 
-// --- 1. Extend Request type with module augmentation ---
+// --- 1. Declare the data shape via module augmentation ---
+
+interface UserData {
+  id: string
+  role: "admin" | "user" | "moderator"
+  email: string
+  username: string
+}
+
 declare module "../src/types" {
-  interface Request {
-    user?: {
-      id: string
-      role: "admin" | "user" | "moderator"
-      email: string
-      username: string
-    }
+  interface ContextDataMap {
+    user: UserData
   }
 }
 
-// --- 2. Auth middleware factory ---
+// --- 2. Auth middleware factory (generic, reusable) ---
+
 interface AuthOptions<T> {
   verifyToken: (token: string) => T | null | Promise<T | null>
   headerName?: string
@@ -36,11 +41,11 @@ function createAuth<T>(options: AuthOptions<T>): RequestMiddleware {
   const tokenPrefix = options.tokenPrefix ?? "Bearer "
   const optional = options.optional ?? false
 
-  return async ({ req, res }) => {
-    const authHeader = req.headers.get(headerName)
+  return async (ctx) => {
+    const authHeader = ctx.req.headers.get(headerName)
     if (!authHeader) {
       if (optional) return
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Missing authorization header" })
+      ctx.res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Missing authorization header" })
       return
     }
 
@@ -51,84 +56,95 @@ function createAuth<T>(options: AuthOptions<T>): RequestMiddleware {
 
     if (!token) {
       if (optional) return
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Missing token" })
+      ctx.res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Missing token" })
       return
     }
 
     const user = await options.verifyToken(token)
     if (!user) {
       if (optional) return
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Invalid token" })
+      ctx.res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Invalid token" })
       return
     }
 
-    req.user = user as Request["user"]
+    ctx.set("user", user)
   }
 }
 
-// --- 3. Role authorization middleware ---
-function requireRole(...roles: string[]): RequestMiddleware {
-  return ({ req, res }) => {
-    if (!req.user) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Authentication required" })
+// --- 3. Role authorization middleware (auto-inferred) ---
+
+function requireRole(...roles: UserData["role"][]): RequestMiddleware {
+  return (ctx) => {
+    const user = ctx.get("user")  // auto-inferred as UserData | undefined
+    if (!user) {
+      ctx.res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Authentication required" })
       return
     }
-    if (!roles.includes(req.user.role)) {
-      res.status(HTTP_STATUS.FORBIDDEN).json({ error: "Insufficient permissions", required: roles })
+    if (!roles.includes(user.role)) {
+      ctx.res.status(HTTP_STATUS.FORBIDDEN).json({ error: "Insufficient permissions", required: roles })
       return
     }
   }
 }
 
-// --- 4. Token verification (replace with real JWT/DB logic) ---
-async function verifyToken(token: string) {
+// --- 4. Token verification ---
+
+async function verifyToken(token: string): Promise<UserData | null> {
   if (token === "valid-admin-token") {
-    return { id: "1", role: "admin" as const, email: "admin@example.com", username: "admin" }
+    return { id: "1", role: "admin", email: "admin@example.com", username: "admin" }
   }
   if (token === "valid-user-token") {
-    return { id: "2", role: "user" as const, email: "user@example.com", username: "john" }
+    return { id: "2", role: "user", email: "user@example.com", username: "john" }
   }
   return null
 }
 
 // --- 5. Create middleware instances ---
-const auth = createAuth({ verifyToken, tokenPrefix: "Bearer " })
-const optionalAuth = createAuth({ verifyToken, tokenPrefix: "Bearer ", optional: true })
+
+const auth = createAuth<UserData>({ verifyToken })
+const optionalAuth = createAuth<UserData>({ verifyToken, optional: true })
 
 // --- 6. Setup routes ---
+
 const app = new Router()
 
 // Public
-app.get("/public", ({ req, res }) => res.json({ message: "Public" }))
+app.get("/public", (ctx) => ctx.res.json({ message: "Public" }))
 
-// Optional auth
-app.get("/feed", optionalAuth, ({ req, res }) => {
-  if (req.user) {
-    res.json({ message: `Personalized feed for ${req.user.username}` })
+// Optional auth — ctx.get("user") auto-infers UserData
+app.get("/feed", optionalAuth, (ctx) => {
+  const user = ctx.get("user")
+  if (user) {
+    ctx.res.json({ message: `Personalized feed for ${user.username}` })
   } else {
-    res.json({ message: "Public feed" })
+    ctx.res.json({ message: "Public feed" })
   }
 })
 
-// Protected
-app.get("/profile", auth, ({ req, res }) => {
-  res.json({ id: req.user!.id, username: req.user!.username, email: req.user!.email })
+// Protected — no non-null assertions needed
+app.get("/profile", auth, (ctx) => {
+  const user = ctx.get("user")
+  ctx.res.json({ id: user!.id, username: user!.username, email: user!.email })
 })
 
 // Role-based
-app.get("/admin/users", auth, requireRole("admin"), ({ req, res }) => {
-  res.json({ message: "Admin panel" })
+app.get("/admin/users", auth, requireRole("admin"), (ctx) => {
+  ctx.res.json({ message: "Admin panel" })
 })
 
-app.get("/dashboard", auth, requireRole("admin", "moderator"), ({ req, res }) => {
-  res.json({ message: "Dashboard" })
+app.get("/dashboard", auth, requireRole("admin", "moderator"), (ctx) => {
+  ctx.res.json({ message: "Dashboard" })
 })
 
 // Global auth for /api/*
 app.use("*", "/api/*", auth)
-app.get("/api/posts", ({ req, res }) => res.json({ message: `Posts for ${req.user!.id}` }))
+app.get("/api/posts", (ctx) => {
+  const user = ctx.get("user")
+  ctx.res.json({ message: `Posts for ${user!.id}` })
+})
 
 // --- 7. Start server ---
+
 const server = Bun.serve({
   port: 3000,
   fetch: app.handle,

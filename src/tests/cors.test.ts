@@ -2,7 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 import { cors } from "../router/cors";
 import { HttpMethod } from "../method";
 import type { EndpointRoute } from "../types";
-import { createMockReq, createMockRes } from "./utils";
+import { createMockReq, createMockRes, calls } from "./utils";
 import { Context } from "../context";
 
 describe("cors middleware", () => {
@@ -134,11 +134,10 @@ describe("cors middleware", () => {
     (req).httpMethod = HttpMethod.OPTIONS;
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
-    const calls = (res.setHeader as any).mock.calls;
-    expect(calls).toContainEqual(["Access-Control-Allow-Origin", "*"]);
-    expect(calls).toContainEqual(["Access-Control-Allow-Methods", "GET, POST"]);
-    expect(calls).toContainEqual(["Access-Control-Allow-Headers", "Content-Type, Authorization"]);
-    expect(calls).toContainEqual(["Access-Control-Max-Age", "3600"]);
+    expect(calls(res.setHeader)).toContainEqual(["Access-Control-Allow-Origin", "*"]);
+    expect(calls(res.setHeader)).toContainEqual(["Access-Control-Allow-Methods", "GET, POST"]);
+    expect(calls(res.setHeader)).toContainEqual(["Access-Control-Allow-Headers", "Content-Type, Authorization"]);
+    expect(calls(res.setHeader)).toContainEqual(["Access-Control-Max-Age", "3600"]);
   });
 
   it("preflight reads request headers when allowedHeaders not set", () => {
@@ -157,8 +156,7 @@ describe("cors middleware", () => {
     (req).httpMethod = HttpMethod.OPTIONS;
     const localCtx = new Context(req, res);
     routes[0].handler(localCtx);
-    const calls = (res.setHeader as any).mock.calls;
-    expect(calls).toContainEqual(["Access-Control-Allow-Headers", "X-Custom-Header"]);
+    expect(calls(res.setHeader)).toContainEqual(["Access-Control-Allow-Headers", "X-Custom-Header"]);
   });
 
 
@@ -192,8 +190,7 @@ describe("cors middleware", () => {
     (req).httpMethod = HttpMethod.OPTIONS;
     const localCtx = new Context(req, res);
     routes[0].handler(localCtx);
-    const calls = (res.setHeader as any).mock.calls;
-    expect(calls).toContainEqual(["Access-Control-Allow-Methods", "GET, HEAD, PUT, PATCH, POST, DELETE"]);
+    expect(calls(res.setHeader)).toContainEqual(["Access-Control-Allow-Methods", "GET, HEAD, PUT, PATCH, POST, DELETE"]);
   });
 
 
