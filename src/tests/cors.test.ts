@@ -4,9 +4,7 @@ import { HttpMethod } from "../method";
 import type { EndpointRoute } from "../types";
 import { createMockReq, createMockRes } from "./utils";
 import { Context } from "../context";
-const res = createMockRes();
-const req = createMockReq();
-const ctx = new Context(req, res);
+
 describe("cors middleware", () => {
   it("adds a cors route", () => {
     const routes: EndpointRoute[] = [];
@@ -157,10 +155,12 @@ describe("cors middleware", () => {
       })
     });
     (req as any).httpMethod = HttpMethod.OPTIONS;
-    routes[0].handler(ctx);
+    const localCtx = new Context(req, res);
+    routes[0].handler(localCtx);
     const calls = (res.setHeader as any).mock.calls;
     expect(calls).toContainEqual(["Access-Control-Allow-Headers", "X-Custom-Header"]);
   });
+
 
   it("preflight continues when preflightContinue is true", () => {
     const routes: EndpointRoute[] = [];
@@ -173,6 +173,7 @@ describe("cors middleware", () => {
       headers: new Headers({ origin: "http://example.com" })
     });
     (req as any).httpMethod = HttpMethod.OPTIONS;
+    const ctx = new Context(req, res);
     routes[0].handler(ctx);
     // Should NOT call send because preflightContinue is true
     expect(res.send).not.toHaveBeenCalled();
@@ -189,10 +190,12 @@ describe("cors middleware", () => {
       headers: new Headers({ origin: "http://example.com" })
     });
     (req as any).httpMethod = HttpMethod.OPTIONS;
-    routes[0].handler(ctx);
+    const localCtx = new Context(req, res);
+    routes[0].handler(localCtx);
     const calls = (res.setHeader as any).mock.calls;
     expect(calls).toContainEqual(["Access-Control-Allow-Methods", "GET, HEAD, PUT, PATCH, POST, DELETE"]);
   });
+
 
   it("allows function-based origin", () => {
     const routes: EndpointRoute[] = [];

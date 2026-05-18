@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test"
 import { mergeRequestMiddlewares, unmergeRequestMiddleware, isMergedRequestMiddleware, isMergeableEndpointRoute } from "../middleware"
-import { Context } from "../context"
+import type { Context } from "../types"
 import type { Request, EndpointRoute } from "../types"
 import { ResponseBuilder } from "../responseBuilder"
 import { HttpMethod } from "../method"
@@ -21,7 +21,7 @@ describe("mergeRequestMiddlewares", () => {
     const mw1 = (ctx: Context) => { order.push(1) }
     const mw2 = (ctx: Context) => { order.push(2) }
     const merged = mergeRequestMiddlewares(mw1, mw2)
-    merged(new Context({} as Request, {} as ResponseBuilder))
+    merged({ req: {} as Request, res: {} as ResponseBuilder } as unknown as Context)
     expect(order).toEqual([1, 2])
   })
 
@@ -31,7 +31,7 @@ describe("mergeRequestMiddlewares", () => {
     const mw2 = (ctx: Context) => { order.push(2) }
     const merged = mergeRequestMiddlewares(mw1, mw2)
     const res = createMockRes()
-    merged(new Context({} as Request, res))
+    merged({ req: {} as Request, res } as unknown as Context)
     expect(order).toEqual([1])
   })
 
@@ -42,7 +42,7 @@ describe("mergeRequestMiddlewares", () => {
     const mw1 = (ctx: Context) => { order.push(1); ctx.req.upgraded = true }
     const mw2 = (ctx: Context) => { order.push(2) }
     const merged = mergeRequestMiddlewares(mw1, mw2)
-    merged(new Context(req, createMockRes()))
+    merged({ req, res: createMockRes() } as unknown as Context)
     expect(order).toEqual([1])
   })
 
@@ -54,7 +54,7 @@ describe("mergeRequestMiddlewares", () => {
     }
     const mw2 = (ctx: Context) => { order.push(3) }
     const merged = mergeRequestMiddlewares(mw1, mw2)
-    await merged(new Context({} as Request, {} as ResponseBuilder))
+    await merged({ req: {} as Request, res: {} as ResponseBuilder } as unknown as Context)
     expect(order).toEqual([1, 2, 3])
   })
 
@@ -69,7 +69,7 @@ describe("mergeRequestMiddlewares", () => {
     const mw2 = (ctx: Context) => { order.push(3) }
     const merged = mergeRequestMiddlewares(mw1, mw2)
     const res = createMockRes()
-    await merged(new Context({} as Request, res))
+    await merged({ req: {} as Request, res } as unknown as Context)
     expect(order).toEqual([1, 2])
   })
 })

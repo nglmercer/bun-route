@@ -189,7 +189,7 @@ export function cookies(
                 const req = ctx.req
                 const res = ctx.res
                 res.beforeSent(
-                    (res) => storeCookies({ req, res })
+                    (res) => storeCookies(req, res)
                 )
                 parseCookies(req)
             } :

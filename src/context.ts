@@ -2,7 +2,7 @@ import { ResponseBuilder, HTTP_STATUS } from "./responseBuilder"
 import type { Context as ContextInterface, Request as EnhancedRequest } from "./types"
 
 export class Context implements ContextInterface {
-  private _data: Record<string, unknown> = {}
+  _data: Record<string, unknown> = {}
 
   constructor(
     public readonly req: EnhancedRequest,

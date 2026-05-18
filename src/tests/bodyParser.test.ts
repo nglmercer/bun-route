@@ -4,9 +4,7 @@ import { parseHttpMethods } from "../method";
 import type { EndpointRoute } from "../types";
 import { createMockReq, createMockRes } from "./utils";
 import { Context } from "../context";
-const res = createMockRes();
-const req = createMockReq();
-const ctx = new Context(req, res);
+
 describe("bodyParser middleware", () => {
   it("adds a body parser route", () => {
     const routes: EndpointRoute[] = [];
@@ -20,6 +18,7 @@ describe("bodyParser middleware", () => {
     bodyParser(routes, "POST", "/api");
     const body = JSON.stringify({ name: "test", value: 42 });
     let selfRef: any;
+    const localRes = createMockRes();
     const req = createMockReq({
       method: "POST",
       headers: new Headers({ "content-type": "application/json" }),
@@ -27,9 +26,11 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(ctx);
+    const localCtx = new Context(req, localRes);
+    await routes[0].handler(localCtx);
     expect(req.parsedBody).toEqual({ name: "test", value: 42 });
   });
+
 
   it("parses form-urlencoded body", async () => {
     const routes: EndpointRoute[] = [];
@@ -37,6 +38,7 @@ describe("bodyParser middleware", () => {
 
     const body = "name=test&value=42";
     let selfRef: any;
+    const localRes = createMockRes();
     const req = createMockReq({
       method: "POST",
       headers: new Headers({ "content-type": "application/x-www-form-urlencoded" }),
@@ -44,9 +46,11 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(ctx);
+    const localCtx = new Context(req, localRes);
+    await routes[0].handler(localCtx);
     expect(req.parsedBody).toEqual({ name: "test", value: "42" });
   });
+
 
   it("parses text body", async () => {
     const routes: EndpointRoute[] = [];
@@ -54,6 +58,7 @@ describe("bodyParser middleware", () => {
 
     const body = "plain text content";
     let selfRef: any;
+    const localRes = createMockRes();
     const req = createMockReq({
       method: "POST",
       headers: new Headers({ "content-type": "text/plain" }),
@@ -61,9 +66,11 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(ctx);
+    const localCtx = new Context(req, localRes);
+    await routes[0].handler(localCtx);
     expect(req.parsedBody).toBe("plain text content");
   });
+
 
   it("handles invalid JSON gracefully", async () => {
     const routes: EndpointRoute[] = [];
@@ -77,6 +84,7 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
+    const ctx = new Context(req, createMockRes());
     await routes[0].handler(ctx);
     expect(req.parsedBody).toBeUndefined();
   });
@@ -93,6 +101,7 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
+    const ctx = new Context(req, createMockRes());
     await routes[0].handler(ctx);
     expect(req.parsedBody).toBeUndefined();
   });
@@ -109,6 +118,7 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
+    const ctx = new Context(req, createMockRes());
     await routes[0].handler(ctx);
     expect(req.parsedBody).toBeUndefined();
   });
@@ -125,6 +135,7 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
+    const ctx = new Context(req, createMockRes());
     await routes[0].handler(ctx);
     expect(req.parsedBody).toBeUndefined();
   });
@@ -141,6 +152,7 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
+    const ctx = new Context(req, createMockRes());
     await routes[0].handler(ctx);
     // Truncated JSON should fail to parse
     expect(req.parsedBody).toBeUndefined();
@@ -151,6 +163,7 @@ describe("bodyParser middleware", () => {
     bodyParser(routes, "POST", "/api", { limit: 5 });
 
     let selfRef: any;
+    const localRes = createMockRes();
     const req = createMockReq({
       method: "POST",
       headers: new Headers({ "content-type": "text/plain" }),
@@ -158,9 +171,11 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(ctx);
+    const localCtx = new Context(req, localRes);
+    await routes[0].handler(localCtx);
     expect(req.parsedBody).toBe("hello");
   });
+
 
   it("works with all methods", () => {
     const routes: EndpointRoute[] = [];
@@ -174,6 +189,7 @@ describe("bodyParser middleware", () => {
     bodyParser(routes, "POST", "/api");
 
     let selfRef: any;
+    const localRes = createMockRes();
     const req = createMockReq({
       method: "POST",
       headers: new Headers(),
@@ -181,7 +197,9 @@ describe("bodyParser middleware", () => {
     });
     selfRef = req;
     (req as any).clone = mock(() => selfRef);
-    await routes[0].handler(ctx);
+    const localCtx = new Context(req, localRes);
+    await routes[0].handler(localCtx);
     expect(req.parsedBody).toBe("fallback text");
   });
+
 });
