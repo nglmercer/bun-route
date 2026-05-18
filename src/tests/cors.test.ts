@@ -125,13 +125,13 @@ describe("cors middleware", () => {
       maxAge: 3600
     });
     const res = createMockRes();
-    res.status = mock(function () { return res; }) as any;
-    res.send = mock(function () { res.submit = true; }) as any;
+    res.status = mock(function () { return res; });
+    res.send = mock(function () { res.submit = true; });
     const req = createMockReq({
       method: "OPTIONS",
       headers: new Headers({ origin: "http://example.com" })
     });
-    (req as any).httpMethod = HttpMethod.OPTIONS;
+    (req).httpMethod = HttpMethod.OPTIONS;
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
     const calls = (res.setHeader as any).mock.calls;
@@ -145,8 +145,8 @@ describe("cors middleware", () => {
     const routes: EndpointRoute[] = [];
     cors(routes, "OPTIONS", "/api");
     const res = createMockRes();
-    res.status = mock(function () { return res; }) as any;
-    res.send = mock(function () { res.submit = true; }) as any;
+    res.status = mock(function () { return res; });
+    res.send = mock(function () { res.submit = true; });
     const req = createMockReq({
       method: "OPTIONS",
       headers: new Headers({
@@ -154,7 +154,7 @@ describe("cors middleware", () => {
         "access-control-request-headers": "X-Custom-Header"
       })
     });
-    (req as any).httpMethod = HttpMethod.OPTIONS;
+    (req).httpMethod = HttpMethod.OPTIONS;
     const localCtx = new Context(req, res);
     routes[0].handler(localCtx);
     const calls = (res.setHeader as any).mock.calls;
@@ -166,13 +166,13 @@ describe("cors middleware", () => {
     const routes: EndpointRoute[] = [];
     cors(routes, "OPTIONS", "/api", { preflightContinue: true });
     const res = createMockRes();
-    res.status = mock(function () { return res; }) as any;
-    res.send = mock(function () { res.submit = true; }) as any;
+    res.status = mock(function () { return res; });
+    res.send = mock(function () { res.submit = true; });
     const req = createMockReq({
       method: "OPTIONS",
       headers: new Headers({ origin: "http://example.com" })
     });
-    (req as any).httpMethod = HttpMethod.OPTIONS;
+    (req).httpMethod = HttpMethod.OPTIONS;
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
     // Should NOT call send because preflightContinue is true
@@ -183,13 +183,13 @@ describe("cors middleware", () => {
     const routes: EndpointRoute[] = [];
     cors(routes, "OPTIONS", "/api");
     const res = createMockRes();
-    res.status = mock(function () { return res; }) as any;
-    res.send = mock(function () { res.submit = true; }) as any;
+    res.status = mock(function () { return res; });
+    res.send = mock(function () { res.submit = true; });
     const req = createMockReq({
       method: "OPTIONS",
       headers: new Headers({ origin: "http://example.com" })
     });
-    (req as any).httpMethod = HttpMethod.OPTIONS;
+    (req).httpMethod = HttpMethod.OPTIONS;
     const localCtx = new Context(req, res);
     routes[0].handler(localCtx);
     const calls = (res.setHeader as any).mock.calls;

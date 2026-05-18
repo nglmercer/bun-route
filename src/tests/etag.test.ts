@@ -72,7 +72,7 @@ describe("staticFiles with ETag", () => {
 
     // Get the ETag from the setHeader calls
     const etagCall = (res1.setHeader as any).mock.calls.find(
-      (c: any[]) => c[0] === "ETag"
+      (c: [string, string]) => c[0] === "ETag"
     );
     const etag = etagCall ? etagCall[1] : null;
 
@@ -85,8 +85,8 @@ describe("staticFiles with ETag", () => {
         headers: new Headers({ "if-none-match": etag })
       });
       const res2 = createMockRes();
-      res2.status = mock(function () { return res2; }) as any;
-      res2.send = mock(function () { res2.submit = true; }) as any;
+      res2.status = mock(function () { return res2; });
+      res2.send = mock(function () { res2.submit = true; });
       const ctx2 = new Context(req2, res2);
       await routes[0].handler(ctx2);
       expect(res2.status).toHaveBeenCalledWith(304);
@@ -137,10 +137,10 @@ describe("staticFiles with ETag", () => {
     await routes[0].handler(ctx2);
 
     const etag1 = (res1.setHeader as any).mock.calls.find(
-      (c: any[]) => c[0] === "ETag"
+      (c: [string, string]) => c[0] === "ETag"
     )?.[1];
     const etag2 = (res2.setHeader as any).mock.calls.find(
-      (c: any[]) => c[0] === "ETag"
+      (c: [string, string]) => c[0] === "ETag"
     )?.[1];
 
     expect(etag1).toBe(etag2);

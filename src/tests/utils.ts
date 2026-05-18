@@ -1,116 +1,511 @@
-import { mock, type Mock } from "bun:test";
-import { ResponseBuilder } from "../responseBuilder"; // adjust path
-import type { Server } from "bun";
-import type { WebSocketData } from "../types";
-// Make previously-optional fields required to match the actual Request shape,
-// and add the missing `upgraded` property.
-import { QueryParam } from "../router/querybuilder"
-import { PathParam } from "../router/pathparam"
+import { mock } from "bun:test";
+import type { Server, SocketAddress } from "bun";
+import type { WebSocketData, CookieOptions, Request as EnhancedRequest } from "../types";
+import type { ResponseBuilder } from "../responseBuilder";
+import { QueryParam } from "../router/querybuilder";
+import { PathParam } from "../router/pathparam";
+import { HttpMethod, parseHttpMethods } from "../method";
+import type { SplitPath } from "../path";
+import type { Awaitable } from "../types";
 
-type MockRequest = Request & {
-    httpMethod: any;
-    path: string;
-    splitPath: any;
-    server: any;
-    sock: any;
-    cookies: any;
-    originCookies: any;
-    upgraded?: true;        // ← `boolean` → `true` (literal type to match Bun's Request)
-    pathParams?: string[] | Record<string, string>;
-    id?: string;
-    parsedBody?: unknown;
-    queryParams: Record<string, string>;
-    query: (key?: string) => string | string[] | undefined;
-    queries: (key: string) => string[];
-    ip: string;
-    ips: string[];
-    param: {
-        (key: string): QueryParam;
-        (): Record<string, QueryParam>;
-    };
-    pathParam: {
-        (key: string): PathParam;
-        (): Record<string, PathParam>;
-    };
-};
+// ─── Events ───────────────────────────────────────────────────────────
 
-/**
- * Creates a mock Request object for cookie testing
- */
-export const createMockReq = (
-    overrides: Partial<MockRequest> = {}
-): MockRequest => {
-    const { headers, ...rest } = overrides;
-
-    const mockHeaders =
-        headers instanceof Headers
-            ? headers
-            : new Headers((headers as any) || {});
-
-    const baseRequest = {
-        headers: mockHeaders,
-        method: "GET",
-        url: "http://localhost/",
-        httpMethod: overrides.method ?? "GET",
-        path: "/",
-        splitPath: ["/"],
-        server: undefined,
-        sock: undefined,
-        cookies: {},
-        originCookies: undefined as any,
-        queryParams: {},
-        query: (() => ({})) as any,
-        queries: (() => []) as any,
-        ip: "127.0.0.1",
-        ips: ["127.0.0.1"],
-        param: (() => ({})) as any,
-        pathParam: (() => ({})) as any,
-        ...rest,
-    } as MockRequest;
-    // read-only built-ins we can't spread literally
-
-    return baseRequest;
-};
-
-/**
- * Enhanced Response Mock
- */
-export interface MockResponse {
-    status: Mock<(code: number) => MockResponse>;
-    send: Mock<(body: any) => MockResponse>;
-    setCookie: Mock<(name: string, value: string, opts?: any) => MockResponse>;
-    unsetCookie: Mock<(name: string) => MockResponse>;
-    [key: string]: any;
+export interface MockResponseEventMap {
+  send: CustomEvent<{ body: unknown }>;
+  status: CustomEvent<{ code: number; text?: string }>;
+  header: CustomEvent<{ name: string; value: string }>;
+  redirect: CustomEvent<{ url: string; permanent: boolean }>;
+  reset: CustomEvent<void>;
+  beforeSentRegister: CustomEvent<{ hook: Function }>;
+  response: CustomEvent<{ response: Response }>;
 }
 
-export const createMockRes = (): ResponseBuilder => {
-    const res = {
-        // ── state fields ──────────────────────────────────────────────
-        submit: false,
-        statusCode: 200,
-        statusText: undefined,
-        bodyInit: null,
-        headers: [] as [string, string][],
-        beforeSentHooks: undefined,
+// ─── MockRequest ──────────────────────────────────────────────────────
 
-        // ── mocked methods (all return `res` for chaining) ────────────
-        status: mock(function (this: any) { return res; }),
-        send: mock(function (this: any) { res.submit = true; }),
-        body: mock(function (this: any) { return res; }),
-        setHeader: mock(function (this: any) { return res; }),
-        unsetHeader: mock(function (this: any) { return res; }),
-        setCookie: mock(function (this: any) { return res; }),
-        unsetCookie: mock(function (this: any) { return res; }),
-        sendRedirect: mock(function (this: any) { res.submit = true; }),
-        sendRedirectCustom: mock(function (this: any) { res.submit = true; }),
-        reset: mock(function (this: any) { return res; }),
-        build: mock(function (this: any) { return new Response(null); }),
-        beforeSent: mock(function (this: any) { return res; }),
-        startBeforeSentHook: mock(function (this: any) { }),
-    } as unknown as ResponseBuilder;
+export interface MockRequestInit {
+  method?: string;
+  headers?: Headers | Record<string, string>;
+  body?: string | ArrayBuffer | Blob | null;
+  url?: string;
 
-    return res;
-};
+  // Custom fields from the Request interface
+  httpMethod?: HttpMethod | string;
+  path?: string;
+  splitPath?: SplitPath;
+  server?: Partial<Server<WebSocketData>>;
+  sock?: Partial<SocketAddress>;
+  cookies?: Record<string, string | undefined>;
+  originCookies?: unknown;
+  upgraded?: true;
+  id?: string;
+  pathParams?: string[] | Record<string, string>;
+  parsedBody?: unknown;
+  queryParams?: Record<string, string>;
+  ip?: string;
+  ips?: string[];
+}
+
+/**
+ * A full in-memory mock of bun-route's enhanced Request type.
+ *
+ * - Body is stored internally as a string so `text()`, `json()`,
+ *   `arrayBuffer()`, and `clone()` are all idempotent (no body locking).
+ * - Extends `EventTarget` so tests can listen for events.
+ * - All custom bun-route fields (cookies, parsedBody, pathParams, etc.)
+ *   are real writable properties.
+ */
+export class MockRequest extends EventTarget {
+  // ── Standard Request API ──────────────────────────────────────────
+  readonly headers: Headers;
+  readonly method: string;
+  readonly url: string;
+  readonly referrer: string = "";
+  readonly referrerPolicy: ReferrerPolicy = "" as ReferrerPolicy;
+  readonly mode: RequestMode = "cors";
+  readonly credentials: RequestCredentials = "same-origin";
+  readonly cache: RequestCache = "default";
+  readonly redirect: RequestRedirect = "follow";
+  readonly integrity: string = "";
+  readonly keepalive: boolean = false;
+  readonly isHistoryNavigation: boolean = false;
+  readonly signal: AbortSignal = new AbortController().signal;
+  readonly bodyUsed: boolean = false;
+  readonly destination: RequestDestination = "" as RequestDestination;
+  readonly body: ReadableStream<Uint8Array> | null = null;
+
+  private _bodyText: string;
+
+  // ── Custom bun-route fields ───────────────────────────────────────
+  httpMethod: HttpMethod;
+  path: string;
+  splitPath: SplitPath;
+  server: Server<WebSocketData>;
+  sock: SocketAddress;
+  originCookies: unknown;
+  cookies: Record<string, string | undefined>;
+  upgraded?: true;
+  id?: string;
+  pathParams?: string[] | Record<string, string>;
+  parsedBody?: unknown;
+  queryParams: Record<string, string>;
+  ip: string;
+  ips: string[];
+
+  constructor(input?: string | MockRequestInit, init?: MockRequestInit) {
+    super();
+
+    let urlStr: string;
+    let options: MockRequestInit;
+
+    if (typeof input === "string") {
+      urlStr = input;
+      options = init ?? {};
+    } else {
+      options = input ?? {};
+      urlStr = options.url ?? "http://localhost/";
+    }
+
+    this.url = urlStr;
+    this.method = options.method ?? "GET";
+    this._bodyText = typeof options.body === "string" ? options.body : "";
+    this.headers =
+      options.headers instanceof Headers
+        ? options.headers
+        : new Headers((options.headers as Record<string, string>) ?? {});
+
+    // Custom fields
+    this.httpMethod =
+      typeof options.httpMethod === "string"
+        ? parseHttpMethods(options.httpMethod)
+        : (options.httpMethod ?? parseHttpMethods(this.method));
+    this.path = options.path ?? new URL(this.url).pathname;
+    this.splitPath = options.splitPath;
+    this.server = (options.server ?? {}) as Server<WebSocketData>;
+    this.sock = (options.sock ?? {}) as SocketAddress;
+    this.cookies = "cookies" in options ? options.cookies : {};
+    this.originCookies = "originCookies" in options ? options.originCookies : undefined;
+    this.upgraded = options.upgraded;
+    this.id = options.id;
+    this.pathParams = options.pathParams;
+    this.parsedBody = options.parsedBody;
+    this.queryParams = options.queryParams ?? {};
+    this.ip = options.ip ?? "127.0.0.1";
+    this.ips = options.ips ?? ["127.0.0.1"];
+  }
+
+  // ── Body reading (always succeeds, no locking) ────────────────────
+
+  async text(): Promise<string> {
+    this.dispatchEvent(new CustomEvent("text"));
+    return this._bodyText;
+  }
+
+  async json(): Promise<unknown> {
+    this.dispatchEvent(new CustomEvent("json"));
+    return JSON.parse(this._bodyText);
+  }
+
+  async arrayBuffer(): Promise<ArrayBuffer> {
+    this.dispatchEvent(new CustomEvent("arrayBuffer"));
+    return new TextEncoder().encode(this._bodyText).buffer;
+  }
+
+  async bytes(): Promise<Uint8Array> {
+    this.dispatchEvent(new CustomEvent("bytes"));
+    return new TextEncoder().encode(this._bodyText);
+  }
+
+  async blob(): Promise<Blob> {
+    this.dispatchEvent(new CustomEvent("blob"));
+    return new Blob([this._bodyText]);
+  }
+
+  async formData(): Promise<FormData> {
+    this.dispatchEvent(new CustomEvent("formData"));
+    const fd = new FormData();
+    const params = new URLSearchParams(this._bodyText);
+    params.forEach((value, key) => fd.append(key, value));
+    return fd;
+  }
+
+  clone(): MockRequest {
+    const cloned = new MockRequest({
+      url: this.url,
+      method: this.method,
+      headers: new Headers(this.headers),
+      body: this._bodyText,
+      httpMethod: this.httpMethod,
+      path: this.path,
+      splitPath: this.splitPath,
+      server: this.server,
+      sock: this.sock,
+      cookies: { ...this.cookies },
+      originCookies: this.originCookies,
+      upgraded: this.upgraded,
+      id: this.id,
+      pathParams: this.pathParams,
+      parsedBody: this.parsedBody,
+      queryParams: { ...this.queryParams },
+      ip: this.ip,
+      ips: [...this.ips],
+    });
+    return cloned;
+  }
+
+  // ── Query / param helpers ─────────────────────────────────────────
+
+  query(key?: string): string | string[] | Record<string, string> | undefined {
+    if (key) return this.queryParams[key];
+    return this.queryParams;
+  }
+
+  queries(key: string): string[] {
+    const v = this.queryParams[key];
+    return v !== undefined ? [v] : [];
+  }
+
+  param(key: string): QueryParam;
+  param(): Record<string, QueryParam>;
+  param(key?: string): QueryParam | Record<string, QueryParam> {
+    if (key) return new QueryParam(this.queryParams[key]);
+    const result: Record<string, QueryParam> = {};
+    for (const k of Object.keys(this.queryParams)) {
+      result[k] = new QueryParam(this.queryParams[k]);
+    }
+    return result;
+  }
+
+  pathParam(key: string): PathParam;
+  pathParam(): Record<string, PathParam>;
+  pathParam(key?: string): PathParam | Record<string, PathParam> {
+    const params =
+      !this.pathParams
+        ? {}
+        : Array.isArray(this.pathParams)
+          ? Object.fromEntries(this.pathParams.map((v, i) => [String(i), v]))
+          : this.pathParams;
+    if (key) return new PathParam(params[key]);
+    const result: Record<string, PathParam> = {};
+    for (const k of Object.keys(params)) {
+      result[k] = new PathParam(params[k]);
+    }
+    return result;
+  }
+
+  // ── toString / toJSON ─────────────────────────────────────────────
+
+  toString(): string {
+    return `[MockRequest ${this.method} ${this.url}]`;
+  }
+}
+
+// ─── MockResponseBuilder ──────────────────────────────────────────────
+
+/**
+ * A full in-memory mock of ResponseBuilder.
+ *
+ * - Extends `EventTarget` so tests can listen for events like `"send"`,
+ *   `"header"`, `"status"`, `"redirect"`, `"reset"`, `"response"`.
+ * - All methods are wrapped with `mock()` from bun:test so they can be
+ *   inspected via `expect(res.setHeader).toHaveBeenCalledWith(...)`.
+ * - `beforeSent` hooks are stored and executed by `startBeforeSentHook()`.
+ */
+export class MockResponseBuilder extends EventTarget {
+  // ── State ─────────────────────────────────────────────────────────
+  submit: boolean = false;
+  statusCode: number = 200;
+  statusText?: string;
+  bodyInit: unknown = null;
+  headers: [string, string][] = [];
+  private _beforeSentHooks: Array<
+    (res: MockResponseBuilder) => Awaitable<void>
+  > = [];
+
+  // ── Status ────────────────────────────────────────────────────────
+
+  status = mock((code: number, text?: string): this => {
+    this.statusCode = code;
+    if (text !== undefined) this.statusText = text;
+    this.dispatchEvent(new CustomEvent("status", { detail: { code, text } }));
+    return this;
+  });
+
+  // ── Body / send ───────────────────────────────────────────────────
+
+  send = mock((body: unknown = null): void => {
+    this.bodyInit = body;
+    this.submit = true;
+    this.dispatchEvent(new CustomEvent("send", { detail: { body } }));
+    this.dispatchEvent(new CustomEvent("response"));
+  });
+
+  body = mock((body: unknown = null): this => {
+    this.bodyInit = body;
+    return this;
+  });
+
+  // ── Typed responses ───────────────────────────────────────────────
+
+  sendJson = mock((data: unknown, code?: number): void => {
+    const saved = this.statusCode;
+    this.reset();
+    this.statusCode = saved;
+    this.bodyInit = JSON.stringify(data);
+    this.setHeader("content-type", "application/json");
+    if (code !== undefined) this.statusCode = code;
+    this.submit = true;
+    this.dispatchEvent(new CustomEvent("response"));
+  });
+
+  json = mock((data: unknown, code?: number): void => {
+    this.sendJson(data, code);
+  });
+
+  sendText = mock((data: string, code?: number): void => {
+    this.reset();
+    this.bodyInit = data;
+    this.setHeader("content-type", "text/plain; charset=UTF-8");
+    if (code !== undefined) this.statusCode = code;
+    this.submit = true;
+    this.dispatchEvent(new CustomEvent("response"));
+  });
+
+  text = mock((data: string, code?: number): void => {
+    this.sendText(data, code);
+  });
+
+  sendHtml = mock((data: string, code?: number): void => {
+    this.reset();
+    this.bodyInit = data;
+    this.setHeader("content-type", "text/html; charset=UTF-8");
+    if (code !== undefined) this.statusCode = code;
+    this.submit = true;
+    this.dispatchEvent(new CustomEvent("response"));
+  });
+
+  html = mock((data: string, code?: number): void => {
+    this.sendHtml(data, code);
+  });
+
+  sendError = mock((message: string, code: number = 500): void => {
+    this.reset();
+    this.bodyInit = JSON.stringify({ error: message, status: code });
+    this.setHeader("content-type", "application/json");
+    this.statusCode = code;
+    this.submit = true;
+    this.dispatchEvent(new CustomEvent("response"));
+  });
+
+  error = mock((message: string, code: number = 500): void => {
+    this.sendError(message, code);
+  });
+
+  sendNoContent = mock((): void => {
+    this.reset();
+    this.statusCode = 204;
+    this.submit = true;
+    this.dispatchEvent(new CustomEvent("response"));
+  });
+
+  noContent = mock((): void => {
+    this.sendNoContent();
+  });
+
+  // ── File ──────────────────────────────────────────────────────────
+
+  sendFile = mock((file: import("bun").BunFile, code?: number): void => {
+    this.reset();
+    this.bodyInit = file;
+    this.setHeader("content-type", file.type);
+    if (code !== undefined) this.statusCode = code;
+    this.submit = true;
+    this.dispatchEvent(new CustomEvent("response"));
+  });
+
+  file = mock((file: import("bun").BunFile, code?: number): void => {
+    this.sendFile(file, code);
+  });
+
+  // ── Redirect ──────────────────────────────────────────────────────
+
+  sendRedirect = mock((url: string, permanent: boolean = false): void => {
+    this.reset();
+    this.statusCode = permanent ? 308 : 307;
+    this.headers.push(["location", url]);
+    this.submit = true;
+    this.dispatchEvent(
+      new CustomEvent("redirect", { detail: { url, permanent } }),
+    );
+    this.dispatchEvent(new CustomEvent("response"));
+  });
+
+  sendRedirectCustom = mock((url: string, status: number): void => {
+    this.reset();
+    this.statusCode = status;
+    this.headers.push(["location", url]);
+    this.submit = true;
+    this.dispatchEvent(
+      new CustomEvent("redirect", { detail: { url, permanent: null } }),
+    );
+    this.dispatchEvent(new CustomEvent("response"));
+  });
+
+  // ── Headers ───────────────────────────────────────────────────────
+
+  setHeader = mock(
+    (name: string, value: string, overwrite: boolean = true): this => {
+      if (overwrite) {
+        this.unsetHeader(name);
+      }
+      this.headers.push([name, value]);
+      this.dispatchEvent(
+        new CustomEvent("header", { detail: { name, value } }),
+      );
+      return this;
+    },
+  );
+
+  unsetHeader = mock((name: string): this => {
+    const lower = name.toLowerCase();
+    this.headers = this.headers.filter(([h]) => h.toLowerCase() !== lower);
+    return this;
+  });
+
+  // ── Cookies ───────────────────────────────────────────────────────
+
+  setCookie = mock(
+    (name: string, value: string, options: CookieOptions = {}): this => {
+      const parts = [`${name}=${encodeURIComponent(value)}`];
+      if (options.MaxAge) parts.push(`Max-Age=${options.MaxAge}`);
+      if (options.Path) parts.push(`Path=${options.Path}`);
+      if (options.HttpOnly) parts.push("HttpOnly");
+      if (options.Secure) parts.push("Secure");
+      if (options.SameSite) parts.push(`SameSite=${options.SameSite}`);
+      this.setHeader("Set-Cookie", parts.join("; "), false);
+      return this;
+    },
+  );
+
+  unsetCookie = mock((name: string): this => {
+    this.setHeader(
+      "Set-Cookie",
+      `${name}=; Expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+      false,
+    );
+    return this;
+  });
+
+  // ── Hooks ─────────────────────────────────────────────────────────
+
+  beforeSent = mock(
+    (hook: (res: MockResponseBuilder) => Awaitable<void>): this => {
+      this._beforeSentHooks.push(hook);
+      this.dispatchEvent(
+        new CustomEvent("beforeSentRegister", { detail: { hook } }),
+      );
+      return this;
+    },
+  );
+
+  /**
+   * Execute all registered beforeSent hooks in order.
+   * Returns a promise if any hook is async.
+   */
+  startBeforeSentHook(): Awaitable<void> {
+    const run = (): void | Promise<void> => {
+      const hook = this._beforeSentHooks.shift();
+      if (!hook) return;
+      const result = hook(this);
+      if (result && typeof (result as Promise<void>).then === "function") {
+        return (result as Promise<void>).then(() => {
+          const next = run();
+          if (next && typeof (next as Promise<void>).then === "function") {
+            return next;
+          }
+        });
+      }
+      return run();
+    };
+    return run();
+  }
+
+  // ── Reset / build / clone ─────────────────────────────────────────
+
+  reset = mock((): this => {
+    this.submit = false;
+    this.statusCode = 200;
+    this.statusText = undefined;
+    this.bodyInit = null;
+    this.headers = [];
+    this.dispatchEvent(new CustomEvent("reset"));
+    return this;
+  });
+
+  build(): Response {
+    const body =
+      typeof this.bodyInit === "string" || this.bodyInit === null
+        ? (this.bodyInit as BodyInit | null)
+        : JSON.stringify(this.bodyInit);
+    return new Response(body, {
+      status: this.statusCode,
+      statusText: this.statusText,
+      headers: this.headers,
+    });
+  }
+
+  clone(): MockResponseBuilder {
+    const rb = new MockResponseBuilder();
+    rb.submit = this.submit;
+    rb.statusCode = this.statusCode;
+    rb.statusText = this.statusText;
+    rb.bodyInit = this.bodyInit;
+    rb.headers = [...this.headers];
+    rb._beforeSentHooks = [...this._beforeSentHooks];
+    return rb;
+  }
+}
+
+// ─── Mock Server (unchanged) ──────────────────────────────────────────
 
 /**
  * Mock Server for WebSocket/Upgrade testing.
@@ -118,34 +513,76 @@ export const createMockRes = (): ResponseBuilder => {
  * check passes without maintaining a separate interface.
  */
 export const createMockServer = () => {
-    const server = {
-        upgrade: mock(() => true),
-        pendingWebSockets: 0,
-        publish: mock(() => 0),
-        requestIP: mock(() => ({ address: "127.0.0.1", family: "IPv4", port: 3000 })),
-        stop: mock(async () => { }),
-        reload: mock(() => { }),
-        fetch: mock(async () => new Response(null)),
-        subscriberCount: mock(() => 0),
-        subscribe: mock(() => { }),
-        unsubscribe: mock(() => { }),
-        isSubscribed: mock(() => false),
-        cork: mock((cb: any) => cb()),
-        ref: mock(() => { }),
-        unref: mock(() => { }),
-        hostname: "localhost",
-        port: 3000,
-        development: false,
-        id: "",
-    } as unknown as Server<WebSocketData>;
+  const server = {
+    upgrade: mock(() => true),
+    pendingWebSockets: 0,
+    publish: mock(() => 0),
+    requestIP: mock(() => ({
+      address: "127.0.0.1",
+      family: "IPv4" as const,
+      port: 3000,
+    })),
+    stop: mock(async () => {}),
+    reload: mock(() => {}),
+    fetch: mock(async () => new Response(null)),
+    subscriberCount: mock(() => 0),
+    subscribe: mock(() => {}),
+    unsubscribe: mock(() => {}),
+    isSubscribed: mock(() => false),
+    cork: mock((cb: any) => cb()),
+    ref: mock(() => {}),
+    unref: mock(() => {}),
+    hostname: "localhost",
+    port: 3000,
+    development: false,
+    id: "",
+  } as unknown as Server<WebSocketData>;
 
-    // Read-only in the type but settable via defineProperty on a plain object
-    Object.defineProperty(server, "url", {
-        value: new URL("http://localhost:3000"),
-        writable: false,
-        enumerable: true,
-        configurable: true,
-    });
+  Object.defineProperty(server, "url", {
+    value: new URL("http://localhost:3000"),
+    writable: false,
+    enumerable: true,
+    configurable: true,
+  });
 
-    return server;
+  return server;
+};
+
+// ─── Factory functions (backward compatible) ─────────────────────────
+
+export type MockRequestOverrides = Partial<MockRequestInit>;
+
+/**
+ * Creates a MockRequest with sensible defaults.
+ * Returns it cast as the enhanced Request type for Context constructor compatibility.
+ */
+export const createMockReq = (
+  overrides: MockRequestOverrides = {},
+): EnhancedRequest => {
+  const { headers, body, ...rest } = overrides;
+  return new MockRequest({
+    url: "http://localhost/",
+    method: "GET",
+    headers:
+      headers instanceof Headers
+        ? headers
+        : new Headers((headers as Record<string, string>) ?? {}),
+    httpMethod: "GET",
+    path: "/",
+    splitPath: ["/"],
+    cookies: {},
+    queryParams: {},
+    ip: "127.0.0.1",
+    ips: ["127.0.0.1"],
+    ...rest,
+    body: body ?? undefined,
+  }) as unknown as EnhancedRequest;
+};
+
+/**
+ * Creates a MockResponseBuilder.
+ * Returns it cast as ResponseBuilder for Context constructor compatibility.
+ */
+export const createMockRes = (): ResponseBuilder => {
+  return new MockResponseBuilder() as unknown as ResponseBuilder;
 };

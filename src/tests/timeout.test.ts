@@ -17,7 +17,7 @@ describe("timeout middleware", () => {
     const routes: EndpointRoute[] = [];
     timeout(routes, "GET", "/api", { timeoutMs: 5000 });
     const res = createMockRes();
-    res.beforeSent = mock(function () { return res; }) as any;
+    res.beforeSent = mock(function () { return res; });
     const req = createMockReq();
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
@@ -40,8 +40,8 @@ describe("timeout middleware", () => {
     const routes: EndpointRoute[] = [];
     timeout(routes, "GET", "/api", { timeoutMs: 1 });
     const res = createMockRes();
-    res.status = mock(function () { return res; }) as any;
-    res.send = mock(function () { res.submit = true; }) as any;
+    res.status = mock(function () { return res; });
+    res.send = mock(function () { res.submit = true; });
     const req = createMockReq();
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
@@ -58,7 +58,7 @@ describe("timeout middleware", () => {
     timeout(routes, "GET", "/api", { timeoutMs: 5000 });
     const res = createMockRes();
     let hookFn: Function | undefined;
-    res.beforeSent = mock((fn: Function) => { hookFn = fn; return res; }) as any;
+    res.beforeSent = mock((fn: Function) => { hookFn = fn; return res; });
     const req = createMockReq();
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
