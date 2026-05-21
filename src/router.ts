@@ -40,10 +40,6 @@ export type ErrorHandler = (err: Error, ctx: Context) => Awaitable<void>
  * ### About
  * A simple express-like router written for bun serve.
  * 
- * ### Author
- * By [NobleMajo](https://github.com/NobleMajo)
- * @see https://github.com/NobleMajo
- * 
  * ### Usage:
  * You can use the bun.serve function and use router.handle as fetch parameter of the settings:
  * ```ts

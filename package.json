@@ -1,7 +1,7 @@
 {
   "name": "bun-route",
-  "version": "1.1.17",
-  "description": "A fast, Express-like router for the high-performance bun.serve() HTTP server.",
+  "version": "1.2.0",
+  "description": "A fast, Express-like router for Bun.serve with native Socket.IO support.",
   "type": "module",
   "main": "./src/index.cjs",
   "module": "./src/index.js",
@@ -12,12 +12,8 @@
     "require": "./src/index.cjs"
   },
   "scripts": {
-    "bump": "bun --print \"const pkg = await Bun.file('package.json').json(); pkg.version = pkg.version.split('.').map((v, i) => i===2?+v+1:v).join('.'); await Bun.write('package.json', JSON.stringify(pkg, null, 2)); export default pkg.version\"",
-    "start": "node --enable-source-maps dist/index.js",
-    "build": "bun run .github/build.ts",
     "test": "bun test",
-    "exec": "tsc && node --enable-source-maps dist/index.js",
-    "dev": "nodemon -w ./src --ext *.ts -x \"tsc && node --enable-source-maps dist/index.js\""
+    "build": "bun run .github/build.ts"
   },
   "files": [
     "./src"
@@ -27,41 +23,29 @@
     "bunjs",
     "bun-js",
     "typescript",
-    "opensource",
-    "open",
-    "type",
-    "typed",
-    "typescript",
-    "ts",
-    "serve",
-    "bunserve",
-    "bun-serve",
-    "route",
+    "router",
     "bunrouter",
     "bun-router",
     "bunroute",
     "bun-route",
-    "router",
     "express",
-    "expressjs",
-    "expresslike",
-    "express-js",
     "express-like",
     "http",
     "server",
-    "httpserver"
+    "websocket",
+    "socket.io",
+    "socketio",
+    "realtime"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/NobleMajo/bun-route",
+  "homepage": "https://github.com/nglmercer/bun-route",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/NobleMajo/bun-route.git"
+    "url": "git+https://github.com/nglmercer/bun-route.git"
   },
-  "bugs": "https://github.com/NobleMajo/bun-route/issues",
+  "bugs": "https://github.com/nglmercer/bun-route/issues",
   "author": {
-    "name": "NobleMajo",
-    "email": "majo@coreunit.net",
-    "url": "https://noblemajo.de/en/"
+    "name": "nglmercer"
   },
   "devDependencies": {
     "@types/bun": "^1.3.13",
