@@ -7,7 +7,7 @@
  * Test: curl http://localhost:3005/...
  */
 
-import { Router } from "../src/index";
+import { Router, handlerName } from "../src/index";
 
 const router = new Router();
 
@@ -15,10 +15,10 @@ const router = new Router();
 
 // Try:  curl http://localhost:3005/users/42
 //       → "pathParam('id') = 42"
-router.get("/users/:id", ({ req, res }) => {
+router.get("/users/:id", handlerName("getUser", ({ req, res }) => {
   const id = req.pathParam("id").string();
   res.send(`pathParam('id') = ${id}`);
-});
+}));
 
 // Try:  curl http://localhost:3005/items/books/99
 //       → "category=books  item=99"
@@ -71,12 +71,12 @@ router.get("/search", ({ req, res }) => {
 // Named path param + query params combined
 // Try:  curl "http://localhost:3005/users/42/items?sort=asc&page=2"
 //       → "user=42  sort=asc  page=2"
-router.get("/users/:id/items", ({ req, res }) => {
+router.get("/users/:id/items", handlerName("getUserItems", ({ req, res }) => {
   const id = req.pathParam("id").string();
   const sort = req.queryParam("sort").string("desc"); // default: desc
   const page = req.queryParam("page").number(1);
   res.send(`user=${id}  sort=${sort}  page=${page}`);
-});
+}));
 
 // ─── All params at once ───────────────────────────────────────
 
@@ -98,27 +98,32 @@ router.get("/echo", ({ req, res }) => {
 
 // Try:  curl -X POST "http://localhost:3005/items/books/42?ref=home"
 //       → "POST category=books id=42 ref=home"
-router.post("/items/:category/:id", ({ req, res }) => {
+router.post("/items/:category/:id", handlerName("createItem", ({ req, res }) => {
   const cat = req.pathParam("category").require();
   const id = req.pathParam("id").require();
   const ref = req.queryParam("ref").string("direct");
   res.send(`POST category=${cat} id=${id} ref=${ref}`);
-});
+}));
 
 // ─── Delete with params ──────────────────────────────────────
 
 // Try:  curl -X DELETE "http://localhost:3005/posts/99/comments/5?hard=true"
 //       → "DELETE post=99 comment=5 hard=true"
-router.delete("/posts/:postId/comments/:commentId", ({ req, res }) => {
+router.delete("/posts/:postId/comments/:commentId", handlerName("deleteComment", ({ req, res }) => {
   const post = req.pathParam("postId").require();
   const comment = req.pathParam("commentId").require();
   const hard = req.queryParam("hard").boolean(false);
   res.send(`DELETE post=${post} comment=${comment} hard=${hard}`);
-});
+}));
 
 export const server = Bun.serve({
   fetch: router.handle,
   port: 3005,
 });
 
-console.info(router.dump(server), router.getRouteDefinitions());
+// Dump table
+console.info(router.dump(server))
+
+// Route definitions — JSON.stringify uses the built-in toJSON()
+console.log("\nRoute definitions (Swagger-ready):")
+console.log(JSON.stringify(router.getRouteDefinitions(), null, 2))

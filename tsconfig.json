@@ -2,21 +2,24 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNEXT",
+    "moduleResolution": "bundler",
     "strict": true,
     "esModuleInterop": true,
-    "moduleResolution": "bundler",
     "skipLibCheck": true,
     "noUnusedLocals": true,
     "noImplicitAny": true,
     "allowJs": true,
-    "noEmit": true,
-    "outDir": "dist",
     "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
     "paths": {
       "@/*": ["./*"],
-      "src/*": ["./src/*"],
-    },
+      "src/*": ["./src/*"]
+    }
   },
-  "include": ["src/**/*.ts", "examples/**/*.ts"],
-  "exclude": ["dist", "node_modules"],
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "node_modules"]
 }

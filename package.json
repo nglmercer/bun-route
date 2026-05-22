@@ -3,20 +3,20 @@
   "version": "1.2.5",
   "description": "A fast, Express-like router for Bun.serve with native Socket.IO support.",
   "type": "module",
-  "main": "./src/index.cjs",
-  "module": "./src/index.js",
-  "types": "./src/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    "types": "./src/index.d.ts",
-    "import": "./src/index.js",
-    "require": "./src/index.cjs"
+    "types": "./dist/index.d.ts",
+    "import": "./dist/index.js",
+    "require": "./dist/index.cjs"
   },
   "scripts": {
     "test": "bun test",
-    "build": "bunx tsc --outDir dist"
+    "build": "bun run scripts/build.ts"
   },
   "files": [
-    "./src"
+    "./dist"
   ],
   "keywords": [
     "bun",

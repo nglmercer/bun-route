@@ -92,10 +92,14 @@ export function resolveHandlerName(handler: RequestMiddleware): string {
         return "[merged]"
     }
     if (handler && typeof handler.name === "string" && handler.name.length > 0) {
-        return handler.name
+        if (handler.name !== "handler") return handler.name
     }
     if (handler && handler.prototype && typeof handler.prototype.name === "string" && handler.prototype.name.length > 0) {
         return handler.prototype.name
+    }
+    const middlewareName = (handler as unknown as Record<string, unknown>).middlewareName
+    if (typeof middlewareName === "string" && middlewareName.length > 0) {
+        return middlewareName
     }
     return "[anonym]"
 }
@@ -146,7 +150,7 @@ export function getRouteDefinitions(
         const statsKey = `${method}:${path}`
         const stats = routeStats.get(statsKey)
 
-        definitions.push({
+        const def: RouteDefinition & { toJSON?(): Record<string, unknown> } = {
             method,
             path,
             splitPath,
@@ -156,7 +160,23 @@ export function getRouteDefinitions(
             middlewareChain,
             isMerged,
             stats: stats ? { ...stats } : undefined,
-        })
+        }
+
+        def.toJSON = function (this: RouteDefinition) {
+            return {
+                method: this.method,
+                path: this.path,
+                splitPath: this.splitPath,
+                pathParams: this.pathParams.map(p => ({ name: p.name, type: p.type, position: p.position })),
+                handlerName: this.handlerName,
+                middlewareName: this.middlewareName,
+                middlewareChain: this.middlewareChain.map(m => ({ name: m.name, mergedToTop: m.mergedToTop })),
+                isMerged: this.isMerged,
+                stats: this.stats ? { ...this.stats } : undefined,
+            }
+        }
+
+        definitions.push(def)
     }
 
     return definitions
@@ -188,26 +208,7 @@ export function getDefinitionString(
         parts[1] = PATH_CHARS.SLASH
     }
 
-    if (
-        isMergedRequestMiddleware(handler)
-    ) {
-        parts[2] = "[merged]"
-    } else if (
-        handler &&
-        typeof handler.name == "string" &&
-        handler.name.length != 0
-    ) {
-        parts[2] = handler.name
-    } else if (
-        handler &&
-        handler.prototype &&
-        typeof handler.prototype.name == "string" &&
-        handler.prototype.name.length != 0
-    ) {
-        parts[2] = handler.prototype.name
-    } else {
-        parts[2] = "[anonym]"
-    }
+    parts[2] = resolveHandlerName(handler)
 
     return parts
 }
