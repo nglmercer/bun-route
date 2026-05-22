@@ -2,8 +2,7 @@ import { mock } from "bun:test";
 import type { Server, SocketAddress } from "bun";
 import type { WebSocketData, CookieOptions, Request as EnhancedRequest } from "../types";
 import type { ResponseBuilder } from "../responseBuilder";
-import { QueryParam } from "../router/querybuilder";
-import { PathParam } from "../router/pathparam";
+import { Param } from "../router/param";
 import { HttpMethod, parseHttpMethods } from "../method";
 import type { SplitPath } from "../path";
 import type { Awaitable } from "../types";
@@ -235,30 +234,30 @@ export class MockRequest extends EventTarget {
     return v !== undefined ? [v] : [];
   }
 
-  param(key: string): QueryParam;
-  param(): Record<string, QueryParam>;
-  param(key?: string): QueryParam | Record<string, QueryParam> {
-    if (key) return new QueryParam(this.queryParams[key]);
-    const result: Record<string, QueryParam> = {};
+  queryParam(key: string): Param;
+  queryParam(): Record<string, Param>;
+  queryParam(key?: string): Param | Record<string, Param> {
+    if (key) return new Param(this.queryParams[key]);
+    const result: Record<string, Param> = {};
     for (const k of Object.keys(this.queryParams)) {
-      result[k] = new QueryParam(this.queryParams[k]);
+      result[k] = new Param(this.queryParams[k]);
     }
     return result;
   }
 
-  pathParam(key: string): PathParam;
-  pathParam(): Record<string, PathParam>;
-  pathParam(key?: string): PathParam | Record<string, PathParam> {
+  pathParam(key: string): Param;
+  pathParam(): Record<string, Param>;
+  pathParam(key?: string): Param | Record<string, Param> {
     const params =
       !this.pathParams
         ? {}
         : Array.isArray(this.pathParams)
           ? Object.fromEntries(this.pathParams.map((v, i) => [String(i), v]))
           : this.pathParams;
-    if (key) return new PathParam(params[key]);
-    const result: Record<string, PathParam> = {};
+    if (key) return new Param(params[key]);
+    const result: Record<string, Param> = {};
     for (const k of Object.keys(params)) {
-      result[k] = new PathParam(params[k]);
+      result[k] = new Param(params[k]);
     }
     return result;
   }

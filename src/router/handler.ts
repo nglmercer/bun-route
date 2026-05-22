@@ -5,8 +5,7 @@ import { splitPath, requestPathMatchesRouteDefinition } from "../path"
 import type { Awaitable, BunRequestHandler, EndpointRoute, WebSocketData, Context } from "../types"
 import { BunRequest } from "../request"
 import { HttpMethod } from "../method"
-import { QueryParam } from "./querybuilder"
-import { PathParam } from "./pathparam"
+import { Param } from "./param"
 import { Context as ContextImpl } from "../context"
 
 export function innerHandle(
@@ -50,47 +49,47 @@ export function innerHandle(
     req.queries = (key: string) => {
         return searchParams.getAll(key)
     }
-    req.param = ((key?: string) => {
+    req.queryParam = ((key?: string) => {
         if (key === undefined) {
-            const all: Record<string, QueryParam> = {}
+            const all: Record<string, Param> = {}
             for (const k of searchParams.keys()) {
                 const values = searchParams.getAll(k)
-                all[k] = new QueryParam(values.length > 1 ? values : values[0])
+                all[k] = new Param(values.length > 1 ? values : values[0])
             }
             return all
         }
         const values = searchParams.getAll(key)
-        if (values.length === 0) return new QueryParam(undefined)
-        if (values.length > 1) return new QueryParam(values)
-        return new QueryParam(values[0])
+        if (values.length === 0) return new Param(undefined)
+        if (values.length > 1) return new Param(values)
+        return new Param(values[0])
     }) as {
-        (key: string): QueryParam
-        (): Record<string, QueryParam>
+        (key: string): Param
+        (): Record<string, Param>
     }
     req.pathParam = ((key?: string) => {
         const pp = req.pathParams
         if (key === undefined) {
-            const all: Record<string, PathParam> = {}
+            const all: Record<string, Param> = {}
             if (pp && typeof pp === "object" && !Array.isArray(pp)) {
                 for (const k of Object.keys(pp)) {
-                    all[k] = new PathParam(pp[k])
+                    all[k] = new Param(pp[k])
                 }
             }
             return all
         }
         if (pp && typeof pp === "object" && !Array.isArray(pp)) {
-            return new PathParam(pp[key])
+            return new Param(pp[key])
         }
         if (Array.isArray(pp)) {
             const index = parseInt(key)
             if (!isNaN(index) && index >= 0 && index < pp.length) {
-                return new PathParam(pp[index])
+                return new Param(pp[index])
             }
         }
-        return new PathParam(undefined)
+        return new Param(undefined)
     }) as {
-        (key: string): PathParam
-        (): Record<string, PathParam>
+        (key: string): Param
+        (): Record<string, Param>
     }
 
     const sock = req.server.requestIP(req)

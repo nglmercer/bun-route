@@ -91,18 +91,18 @@ router.get("/users/:id/posts/:postId", ({ req, res }) => {
 
 ```ts
 router.get("/search", ({ req, res }) => {
-  const q = req.param("q").string();
-  const page = req.param("page").int() ?? 1;
-  const sort = req.param("sort").enum(["asc", "desc"]) ?? "asc";
-  const tags = req.param("tags").array();
+  const q = req.queryParam("q").string();
+  const page = req.queryParam("page").int() ?? 1;
+  const sort = req.queryParam("sort").enum(["asc", "desc"]) ?? "asc";
+  const tags = req.queryParam("tags").array();
 
   res.json({ q, page, sort, tags });
 });
 ```
 
-### `PathParam` & `QueryParam` Typed Accessors
+### `Param` Typed Accessor
 
-Both classes provide the same methods:
+Both `req.queryParam()` (query) and `req.pathParam()` (path) return the same `Param` class:
 
 | Method | Returns | Description |
 |--------|---------|-------------|
@@ -116,7 +116,7 @@ Both classes provide the same methods:
 | `.exists()` | `boolean` | Whether the param is present |
 | `.or(default)` | `string` | Value or fallback default |
 | `.array()` | `string[]` | All values as an array |
-| `.rawValue()` | `string \| undefined` | Unprocessed value (PathParam only) |
+| `.rawValue()` | `string \| string[] \| undefined` | Unprocessed raw value |
 
 ### Cookies
 

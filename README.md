@@ -176,30 +176,30 @@ router.get("/users/:id/posts/:postId", ({ req, res }) => {
 
 ```ts
 router.get("/search", ({ req, res }) => {
-  const q = req.param("q").string();
-  const page = req.param("page").int() ?? 1;
-  const sort = req.param("sort").enum(["asc", "desc"]) ?? "asc";
+  const q = req.queryParam("q").string();
+  const page = req.queryParam("page").int() ?? 1;
+  const sort = req.queryParam("sort").enum(["asc", "desc"]) ?? "asc";
   res.json({ q, page, sort });
 });
 ```
 
-### Type helpers: `PathParam` & `QueryParam`
+### Type helper: `Param`
 
-Both provide the same typed accessor methods:
+Both `req.queryParam()` (query) and `req.pathParam()` (path) return a `Param` instance with typed accessor methods:
 
-| Method | Returns |
-|--------|---------|
-| `.string()` | `string \| undefined` |
-| `.int()` | `number \| undefined` |
-| `.number()` | `number \| undefined` |
-| `.numberBetween(min, max)` | `number \| undefined` |
-| `.boolean()` | `boolean \| undefined` |
-| `.enum(allowed)` | `T \| undefined` |
-| `.require(name?)` | `string` (throws if missing) |
-| `.exists()` | `boolean` |
-| `.or(default)` | `string` |
-| `.array()` | `string[]` |
-| `.rawValue()` | `string \| undefined` (PathParam only) |
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `.string()` | `string \| undefined` | Value as string |
+| `.int()` | `number \| undefined` | Integer value |
+| `.number()` | `number \| undefined` | Numeric value |
+| `.numberBetween(min, max)` | `number \| undefined` | Clamped number |
+| `.boolean()` | `boolean \| undefined` | `"true"`/`"1"` → `true`, `"false"`/`"0"` → `false` |
+| `.enum(allowed)` | `T \| undefined` | Only returns if value matches allowed set |
+| `.require(name?)` | `string` | Returns value or throws |
+| `.exists()` | `boolean` | Whether the param is present |
+| `.or(default)` | `string` | Value or fallback default |
+| `.array()` | `string[]` | All values as array |
+| `.rawValue()` | `string \| string[] \| undefined` | Unprocessed raw value |
 
 ---
 

@@ -3,8 +3,7 @@ import { type HttpMethod } from "./method";
 import { BunRequest } from "./request";
 import type { ResponseBuilder } from "./responseBuilder";
 import type { SplitPath } from "./path";
-import { QueryParam } from "./router/querybuilder";
-import { PathParam } from "./router/pathparam";
+import { Param } from "./router/param";
 
 export type Awaitable<T> = T | Promise<T>;
 export type WebSocketData =
@@ -19,8 +18,8 @@ export type PathParams = string[] | Record<string, string>;
 
 export interface Request extends BunRequest {
   pathParams?: PathParams;
-  pathParam(key: string): PathParam;
-  pathParam(): Record<string, PathParam>;
+  pathParam(key: string): Param;
+  pathParam(): Record<string, Param>;
   httpMethod: HttpMethod;
   path: string;
   splitPath: SplitPath;
@@ -33,8 +32,8 @@ export interface Request extends BunRequest {
   upgraded?: true;
   id?: string;
   parsedBody?: unknown;
-  param(key: string): QueryParam;
-  param(): Record<string, QueryParam>;
+  queryParam(key: string): Param;
+  queryParam(): Record<string, Param>;
   queryParams: Record<string, string>;
   query(key?: string): string | string[] | Record<string, string> | undefined;
   queries(key: string): string[];

@@ -73,7 +73,7 @@ router.group("/api", (_router) => {
         }
 
         // Support filtering endpoints by method via query param
-        const methodFilter = req.param("method").enum(["GET", "POST", "PUT", "DELETE", "PATCH"])
+        const methodFilter = req.queryParam("method").enum(["GET", "POST", "PUT", "DELETE", "PATCH"])
         if (methodFilter) {
             const filtered = endpoints.filter(
                 (e) => e.method.toUpperCase() === methodFilter.toUpperCase()
