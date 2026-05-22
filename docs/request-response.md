@@ -1,6 +1,6 @@
 # Request & Response
 
-bun-route provides a rich request object and a builder-pattern response API.
+router-bun provides a rich request object and a builder-pattern response API.
 
 ## Context (`ctx`)
 
@@ -206,7 +206,7 @@ Multiple hooks can be registered and run in order.
 ### HTTP Status Constants
 
 ```ts
-import { HTTP_STATUS } from "bun-route";
+import { HTTP_STATUS } from "router-bun";
 
 HTTP_STATUS.OK                    // 200
 HTTP_STATUS.NO_CONTENT            // 204
@@ -228,7 +228,7 @@ Augment the `ContextDataMap` interface to get typed `ctx.get()` and `ctx.set()`:
 
 ```ts
 // types.ts
-declare module "bun-route" {
+declare module "router-bun" {
   interface ContextDataMap {
     user: { id: string; role: "admin" | "user"; email: string };
   }

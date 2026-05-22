@@ -74,7 +74,7 @@ export interface CookieOptions {
  * Augment this interface to get auto-inferred types for ctx.get / ctx.set.
  *
  * @example
- *   declare module "bun-route" {
+ *   declare module "router-bun" {
  *     interface ContextDataMap {
  *       user: { id: string; role: "admin" | "user" }
  *     }

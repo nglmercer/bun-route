@@ -1,6 +1,10 @@
 import { mock } from "bun:test";
 import type { Server, SocketAddress } from "bun";
-import type { WebSocketData, CookieOptions, Request as EnhancedRequest } from "../types";
+import type {
+  WebSocketData,
+  CookieOptions,
+  Request as EnhancedRequest,
+} from "../types";
 import type { ResponseBuilder } from "../responseBuilder";
 import { Param } from "../router/param";
 import { HttpMethod, parseHttpMethods } from "../method";
@@ -11,7 +15,10 @@ import type { Awaitable } from "../types";
 
 type TrackedFn<T extends (...args: any[]) => any> = T & {
   calls: Array<Parameters<T>>;
-  mock: { calls: Array<Parameters<T>>; results: Array<{ type: string; value: any }> };
+  mock: {
+    calls: Array<Parameters<T>>;
+    results: Array<{ type: string; value: any }>;
+  };
 };
 
 function tracked<T extends (...args: any[]) => any>(fn: T): TrackedFn<T> {
@@ -76,12 +83,12 @@ export interface MockRequestInit {
 }
 
 /**
- * A full in-memory mock of bun-route's enhanced Request type.
+ * A full in-memory mock of router-bun's enhanced Request type.
  *
  * - Body is stored internally as a string so `text()`, `json()`,
  *   `arrayBuffer()`, and `clone()` are all idempotent (no body locking).
  * - Extends `EventTarget` so tests can listen for events.
- * - All custom bun-route fields (cookies, parsedBody, pathParams, etc.)
+ * - All custom router-bun fields (cookies, parsedBody, pathParams, etc.)
  *   are real writable properties.
  */
 export class MockRequest extends EventTarget {
@@ -105,7 +112,7 @@ export class MockRequest extends EventTarget {
 
   private _bodyText: string;
 
-  // ── Custom bun-route fields ───────────────────────────────────────
+  // ── Custom router-bun fields ───────────────────────────────────────
   httpMethod: HttpMethod;
   path: string;
   splitPath: SplitPath;
@@ -152,8 +159,12 @@ export class MockRequest extends EventTarget {
     this.splitPath = options.splitPath;
     this.server = (options.server ?? {}) as Server<WebSocketData>;
     this.sock = (options.sock ?? {}) as SocketAddress;
-    this.cookies = ("cookies" in options ? options.cookies : {}) as Record<string, string | undefined>;
-    this.originCookies = "originCookies" in options ? options.originCookies : undefined;
+    this.cookies = ("cookies" in options ? options.cookies : {}) as Record<
+      string,
+      string | undefined
+    >;
+    this.originCookies =
+      "originCookies" in options ? options.originCookies : undefined;
     this.upgraded = options.upgraded;
     this.id = options.id;
     this.pathParams = options.pathParams;
@@ -248,12 +259,11 @@ export class MockRequest extends EventTarget {
   pathParam(key: string): Param;
   pathParam(): Record<string, Param>;
   pathParam(key?: string): Param | Record<string, Param> {
-    const params =
-      !this.pathParams
-        ? {}
-        : Array.isArray(this.pathParams)
-          ? Object.fromEntries(this.pathParams.map((v, i) => [String(i), v]))
-          : this.pathParams;
+    const params = !this.pathParams
+      ? {}
+      : Array.isArray(this.pathParams)
+        ? Object.fromEntries(this.pathParams.map((v, i) => [String(i), v]))
+        : this.pathParams;
     if (key) return new Param(params[key]);
     const result: Record<string, Param> = {};
     for (const k of Object.keys(params)) {

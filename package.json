@@ -1,5 +1,5 @@
 {
-  "name": "bun-route",
+  "name": "router-bun",
   "version": "1.2.5",
   "description": "A fast, Express-like router for Bun.serve with native Socket.IO support.",
   "type": "module",
@@ -27,23 +27,21 @@
     "bunrouter",
     "bun-router",
     "bunroute",
-    "bun-route",
+    "router-bun",
     "express",
     "express-like",
     "http",
     "server",
     "websocket",
-    "socket.io",
-    "socketio",
     "realtime"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/nglmercer/bun-route",
+  "homepage": "https://github.com/nglmercer/router-bun",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/nglmercer/bun-route.git"
+    "url": "git+https://github.com/nglmercer/router-bun.git"
   },
-  "bugs": "https://github.com/nglmercer/bun-route/issues",
+  "bugs": "https://github.com/nglmercer/router-bun/issues",
   "author": {
     "name": "nglmercer"
   },

@@ -1,13 +1,13 @@
-# Building Real-Time Applications with bun-route
+# Building Real-Time Applications with router-bun
 
 *Published May 2026*
 
-Real-time features are no longer optional — users expect live updates, instant messaging, and collaborative experiences. In this article, we'll explore how to build real-time applications using bun-route's WebSocket support and the Socket.IO example, all powered by Bun's high-performance runtime.
+Real-time features are no longer optional — users expect live updates, instant messaging, and collaborative experiences. In this article, we'll explore how to build real-time applications using router-bun's WebSocket support and the Socket.IO example, all powered by Bun's high-performance runtime.
 
 ## The Stack
 
 - **Bun** — the JavaScript runtime, providing fast HTTP and WebSocket handling
-- **bun-route** — routing and middleware for HTTP and WebSocket routes
+- **router-bun** — routing and middleware for HTTP and WebSocket routes
 - **socket.io-client** — the standard browser client (works with the Socket.IO example)
 
 ## Option 1: Native Bun WebSockets
@@ -15,7 +15,7 @@ Real-time features are no longer optional — users expect live updates, instant
 For simple real-time features, Bun's native WebSocket API is all you need:
 
 ```ts
-import { Router } from "bun-route";
+import { Router } from "router-bun";
 
 const router = new Router();
 
@@ -49,11 +49,11 @@ Bun.serve({
 
 ## Option 2: Socket.IO Pattern
 
-For more complex real-time applications — chat rooms, typing indicators, acknowledgements — a Socket.IO-compatible server can be built using bun-route's WebSocket support. The repository includes a complete example in [`examples/socket-io/`](../examples/socket-io/):
+For more complex real-time applications — chat rooms, typing indicators, acknowledgements — a Socket.IO-compatible server can be built using router-bun's WebSocket support. The repository includes a complete example in [`examples/socket-io/`](../examples/socket-io/):
 
 ```ts
 // Based on examples/socket-io/server.ts
-import { Router } from "bun-route";
+import { Router } from "router-bun";
 import { SioServer } from "./examples/socket-io/adapter";
 
 const router = new Router();
@@ -76,20 +76,20 @@ Bun.serve({
 
 ## Building a Chat Application with Native WebSockets
 
-Let's build a chat app using bun-route's built-in WebSocket support.
+Let's build a chat app using router-bun's built-in WebSocket support.
 
 ### Step 1: Project Setup
 
 ```sh
 mkdir chat-app && cd chat-app
 bun init -y
-bun add bun-route
+bun add router-bun
 ```
 
 ### Step 2: Server (`server.ts`)
 
 ```ts
-import { Router } from "bun-route";
+import { Router } from "router-bun";
 
 const router = new Router();
 const rooms = new Map<string, Set<string>>();
@@ -236,8 +236,8 @@ bun run server.ts
 
 ## Conclusion
 
-bun-route's WebSocket support makes building real-time applications straightforward. For simple use cases, native WebSockets with Bun's pub/sub are fast and effective. For Socket.IO-compatible real-time features, the example in the repository provides a complete reference implementation.
+router-bun's WebSocket support makes building real-time applications straightforward. For simple use cases, native WebSockets with Bun's pub/sub are fast and effective. For Socket.IO-compatible real-time features, the example in the repository provides a complete reference implementation.
 
 ---
 
-*Try it yourself: `bun add bun-route` and check out the [examples](../examples/).*
+*Try it yourself: `bun add router-bun` and check out the [examples](../examples/).*

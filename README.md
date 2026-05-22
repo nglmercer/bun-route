@@ -1,11 +1,11 @@
-# bun-route
+# router-bun
 
 [![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![npm](https://img.shields.io/npm/v/bun-route.svg?style=plastic&logo=npm&color=red)
+![npm](https://img.shields.io/npm/v/router-bun.svg?style=plastic&logo=npm&color=red)
 
 **A fast, Express-like router for `bun.serve()`.**
 
-`bun-route` leverages Bun's `bun.serve()` to deliver a fast, familiar routing experience. It provides an Express-like API with built-in middleware for CORS, rate limiting, file uploads, and SSE. Includes a Socket.IO example for real-time applications.
+`router-bun` leverages Bun's `bun.serve()` to deliver a fast, familiar routing experience. It provides an Express-like API with built-in middleware for CORS, rate limiting, file uploads, and SSE. Includes a Socket.IO example for real-time applications.
 
 ---
 
@@ -28,7 +28,7 @@
 ## Install
 
 ```sh
-npm i bun-route
+npm i router-bun
 ```
 
 ---
@@ -36,12 +36,12 @@ npm i bun-route
 ## Quick Start
 
 ```ts
-import { Router } from "bun-route";
+import { Router } from "router-bun";
 
 const router = new Router();
 
 router.get("/", ({ res }) => {
-  res.send("Hello from bun-route!");
+  res.send("Hello from router-bun!");
 });
 
 Bun.serve({ fetch: router.handle });
@@ -50,7 +50,7 @@ Bun.serve({ fetch: router.handle });
 ### With WebSocket support
 
 ```ts
-import { Router } from "bun-route";
+import { Router } from "router-bun";
 
 const router = new Router();
 
@@ -97,7 +97,7 @@ All methods return the `Router` instance for chaining.
 ### Naming handlers
 
 ```ts
-import { handlerName } from "bun-route";
+import { handlerName } from "router-bun";
 
 router.get("/users/:id", handlerName("getUser", ({ req, res }) => {
   res.send("ok");
@@ -121,7 +121,7 @@ router.describe("/search", {
 ### Testing
 
 ```ts
-import { createTestContext } from "bun-route";
+import { createTestContext } from "router-bun";
 
 const ctx = createTestContext({
   method: "GET",
@@ -342,7 +342,7 @@ interface UploadedFile {
 ### Server-Sent Events (SSE)
 
 ```ts
-import { createSSEStream, sse } from "bun-route";
+import { createSSEStream, sse } from "router-bun";
 
 router.get("/events", ({ res }) => {
   const stream = createSSEStream(res);
@@ -473,7 +473,7 @@ The context object passed to all handlers provides:
 Augment `ContextDataMap` to get auto-inferred types:
 
 ```ts
-declare module "bun-route" {
+declare module "router-bun" {
   interface ContextDataMap {
     user: { id: string; role: "admin" | "user" };
   }
@@ -487,7 +487,7 @@ declare module "bun-route" {
 
 ## Socket.IO Example
 
-A complete Socket.IO chat server is available in [`examples/socket-io/`](./examples/socket-io/). It implements the Engine.IO and Socket.IO wire protocols on top of bun-route's WebSocket support and works with the standard `socket.io-client` on the frontend.
+A complete Socket.IO chat server is available in [`examples/socket-io/`](./examples/socket-io/). It implements the Engine.IO and Socket.IO wire protocols on top of router-bun's WebSocket support and works with the standard `socket.io-client` on the frontend.
 
 ```sh
 cd examples/socket-io
@@ -554,7 +554,7 @@ const swaggerPath = def.path.replace(/:(\w+)/g, "{$1}");
 ### Performance Stats
 
 ```ts
-import { trackRouteTime, getRouteStats, clearRouteStats } from "bun-route";
+import { trackRouteTime, getRouteStats, clearRouteStats } from "router-bun";
 
 trackRouteTime("GET", "/users", 12.5);
 const stats = getRouteStats();   // Map<string, RouteStats>
@@ -596,7 +596,7 @@ This library is written in TypeScript and ships with full type definitions.
 ### Module Augmentation
 
 ```ts
-declare module "bun-route" {
+declare module "router-bun" {
   interface ContextDataMap {
     user: { id: string; role: "admin" | "user" };
   }

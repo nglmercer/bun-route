@@ -1,6 +1,6 @@
 # Middleware Reference
 
-bun-route includes a rich set of built-in middleware that can be applied as direct router methods or as standalone functions.
+router-bun includes a rich set of built-in middleware that can be applied as direct router methods or as standalone functions.
 
 ---
 
@@ -41,7 +41,7 @@ interface CorsOptions {
 ### Direct Import
 
 ```ts
-import { cors } from "bun-route";
+import { cors } from "router-bun";
 cors(router.routes, "*", "/**", { origin: "*" });
 ```
 
@@ -182,7 +182,7 @@ Router.getFormFields(req);                // Record<string, string>
 ### Creating an SSE Stream
 
 ```ts
-import { createSSEStream } from "bun-route";
+import { createSSEStream } from "router-bun";
 
 router.get("/events", ({ res }) => {
   const stream = createSSEStream(res);
@@ -225,7 +225,7 @@ interface SSEMessage {
 ### Helper Function
 
 ```ts
-import { sse } from "bun-route";
+import { sse } from "router-bun";
 
 router.get("/stream", ({ res }) => {
   sse(res, async (stream) => {

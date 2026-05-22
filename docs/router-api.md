@@ -3,7 +3,7 @@
 ## Constructor
 
 ```ts
-import { Router } from "bun-route";
+import { Router } from "router-bun";
 
 const router = new Router();
 ```

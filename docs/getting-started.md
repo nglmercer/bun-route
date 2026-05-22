@@ -1,6 +1,6 @@
-# Getting Started with bun-route
+# Getting Started with router-bun
 
-A step-by-step guide to building your first bun-route server.
+A step-by-step guide to building your first router-bun server.
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@ A step-by-step guide to building your first bun-route server.
 ## Installation
 
 ```sh
-bun add bun-route
+bun add router-bun
 ```
 
 ## Your First Server
@@ -18,7 +18,7 @@ bun add bun-route
 Create `server.ts`:
 
 ```ts
-import { Router } from "bun-route";
+import { Router } from "router-bun";
 
 const app = new Router();
 
@@ -45,7 +45,7 @@ Visit `http://localhost:3000` — your server is running.
 ## Adding Middleware
 
 ```ts
-import { Router } from "bun-route";
+import { Router } from "router-bun";
 
 const app = new Router();
 
@@ -81,7 +81,7 @@ app.group("/api/v1", (api) => {
 ## WebSocket Support
 
 ```ts
-import { Router } from "bun-route";
+import { Router } from "router-bun";
 
 const app = new Router();
 

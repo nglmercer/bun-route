@@ -1,6 +1,6 @@
 # Routing
 
-bun-route supports Express-like routing with wildcards, named parameters, route groups, and sub-router mounting.
+router-bun supports Express-like routing with wildcards, named parameters, route groups, and sub-router mounting.
 
 ---
 

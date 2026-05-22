@@ -1,6 +1,6 @@
 # Route Dump & Statistics
 
-bun-route provides utilities for inspecting registered routes and tracking performance metrics.
+router-bun provides utilities for inspecting registered routes and tracking performance metrics.
 
 ---
 
@@ -165,7 +165,7 @@ for (const def of defs) {
 ### Standalone function
 
 ```ts
-import { getRouteDefinitions } from "bun-route";
+import { getRouteDefinitions } from "router-bun";
 
 const defs = getRouteDefinitions(router.routes);
 ```
@@ -179,7 +179,7 @@ const defs = getRouteDefinitions(router.routes);
 Record timing data for a route:
 
 ```ts
-import { trackRouteTime, getRouteStats, clearRouteStats } from "bun-route";
+import { trackRouteTime, getRouteStats, clearRouteStats } from "router-bun";
 
 const start = performance.now();
 // ... handle request ...
