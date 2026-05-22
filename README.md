@@ -21,6 +21,8 @@
 - [Tests](#tests)
 - [License](#license)
 
+> 📖 Extended docs: [`docs/getting-started.md`](docs/getting-started.md) · [`docs/router-api.md`](docs/router-api.md) · [`docs/routing.md`](docs/routing.md) · [`docs/middleware.md`](docs/middleware.md) · [`docs/request-response.md`](docs/request-response.md) · [`docs/dump-stats.md`](docs/dump-stats.md)
+
 ---
 
 ## Install
@@ -91,6 +93,44 @@ All methods return the `Router` instance for chaining.
 | `trace` | `(path, handler, ...handlers)` |
 | `connect` | `(path, handler, ...handlers)` |
 | `use` | `(method, path, handler, ...handlers)` — catch-all method |
+
+### Naming handlers
+
+```ts
+import { handlerName } from "bun-route";
+
+router.get("/users/:id", handlerName("getUser", ({ req, res }) => {
+  res.send("ok");
+}));
+// getRouteDefinitions() → handlerName: "getUser"
+```
+
+### Route metadata (query params for Swagger/OpenAPI)
+
+```ts
+router.get("/search", handlerName("search", handler));
+router.describe("/search", {
+  queryParams: [
+    { name: "q",     type: "string",  required: true,  description: "Search query" },
+    { name: "limit", type: "integer", required: false, default: 20 },
+  ],
+});
+// getRouteDefinitions() → queryParams populated
+```
+
+### Testing
+
+```ts
+import { createTestContext } from "bun-route";
+
+const ctx = createTestContext({
+  method: "GET",
+  url: "/users/42?filter=active",
+  pathParams: { id: "42" },
+});
+myHandler(ctx);
+expect(ctx.res.statusCode).toBe(200);
+```
 
 ### Route Groups
 
@@ -189,17 +229,25 @@ Both `req.queryParam()` (query) and `req.pathParam()` (path) return a `Param` in
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `.string()` | `string \| undefined` | Value as string |
-| `.int()` | `number \| undefined` | Integer value |
-| `.number()` | `number \| undefined` | Numeric value |
-| `.numberBetween(min, max)` | `number \| undefined` | Clamped number |
-| `.boolean()` | `boolean \| undefined` | `"true"`/`"1"` → `true`, `"false"`/`"0"` → `false` |
-| `.enum(allowed)` | `T \| undefined` | Only returns if value matches allowed set |
+| `.string(default?)` | `string \| undefined` | Value as string (or default) |
+| `.int(default?)` | `number \| undefined` | Integer value (or default) |
+| `.number(default?)` | `number \| undefined` | Numeric value (or default) |
+| `.numberBetween(min, max, default?)` | `number \| undefined` | Clamped number (or default) |
+| `.boolean(default?)` | `boolean \| undefined` | `"true"`/`"1"` → `true`, `"false"`/`"0"` → `false` (or default) |
+| `.enum(allowed, default?)` | `T \| undefined` | Only returns if value matches allowed set (or default) |
 | `.require(name?)` | `string` | Returns value or throws |
 | `.exists()` | `boolean` | Whether the param is present |
 | `.or(default)` | `string` | Value or fallback default |
 | `.array()` | `string[]` | All values as array |
 | `.rawValue()` | `string \| string[] \| undefined` | Unprocessed raw value |
+
+All getters accept an optional default value — no more `??`:
+
+```ts
+const page   = req.queryParam("page").number(1);   // 1 if missing/invalid
+const sort   = req.queryParam("sort").string("asc"); // "asc" if missing
+const active = req.queryParam("active").boolean(true); // true if missing
+```
 
 ---
 
@@ -474,17 +522,33 @@ for (const def of defs) {
   def.method;        // "GET"
   def.path;          // "/users/:id"
   def.pathParams;    // [{ name: "id", type: "named", position: 1 }]
+  def.queryParams;   // [{ name: "q", type: "string", required: true, description: "..." }]
   def.handlerName;   // "getUser"
   def.middlewareChain;
   def.stats;         // performance stats (if tracked)
 }
 ```
 
-Each `:param` segment is auto-discovered as a path parameter. Wildcards (`*`, `**`) are included too. Use this to generate OpenAPI specs:
+**Path params** (`:id`, `*`, `**`) are auto-discovered from route patterns. **Query params** are declared via `router.describe()`:
+
+```ts
+router.get("/search", handlerName("search", handler));
+router.describe("/search", {
+  queryParams: [
+    { name: "q",     type: "string",  required: true,  description: "Search query" },
+    { name: "limit", type: "integer", required: false, default: 20 },
+    { name: "sort",  type: "string",  required: false, enum: ["asc", "desc"] },
+  ],
+});
+```
+
+Use this to generate OpenAPI specs:
 
 ```ts
 const swaggerPath = def.path.replace(/:(\w+)/g, "{$1}");
 // "/users/:id" → "/users/{id}"
+
+// Merge with def.queryParams for full parameter list
 ```
 
 ### Performance Stats

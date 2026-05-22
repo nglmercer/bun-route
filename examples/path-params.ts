@@ -58,6 +58,14 @@ router.get("/multi/**", ({ req, res }) => {
 
 // ─── Path params with query params ────────────────────────────
 
+// Declare expected query params for the /search route
+router.describe("/search", {
+  queryParams: [
+    { name: "q", type: "string", required: true, description: "Search query" },
+    { name: "limit", type: "integer", required: false, default: 10, description: "Max results" },
+  ],
+});
+
 // Try:  curl "http://localhost:3005/search?q=bun&limit=10"
 //       → "queryParam('q') = bun  queryParam('limit') = 10"
 router.get("/search", ({ req, res }) => {
@@ -66,6 +74,14 @@ router.get("/search", ({ req, res }) => {
   res.send(
     `queryParam('q') = ${q.string()}  queryParam('limit') = ${limit.string()}`,
   );
+});
+
+// Declare expected query params for the route above (OpenAPI/Swagger metadata)
+router.describe("/users/:id/items", {
+  queryParams: [
+    { name: "sort", type: "string", required: false, default: "desc", description: "Sort direction" },
+    { name: "page", type: "integer", required: false, default: 1, description: "Page number" },
+  ],
 });
 
 // Named path param + query params combined

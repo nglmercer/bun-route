@@ -8,7 +8,7 @@ import { isMergedRequestMiddleware } from "./middleware"
 // Import modularized components
 import { parseCookies, storeCookies } from "./router/cookies"
 import { dump as dumpRoutes, getRouteDefinitions as getDefs } from "./router/dump"
-import type { RouteDefinition } from "./router/dump"
+import type { RouteDefinition, QueryParamInfo } from "./router/dump"
 import {
     use as registerUse,
     get as registerGet,
@@ -59,6 +59,7 @@ export class Router {
     mergeHandlers: boolean = true
     private wsHandlers?: Bun.WebSocketHandler<WebSocketData>
     private errorHandler?: ErrorHandler
+    private routeMeta = new Map<string, { queryParams?: QueryParamInfo[] }>()
 
     // Expose cookie methods as static
     static parseCookies = parseCookies
@@ -126,7 +127,36 @@ export class Router {
      * ```
      */
     getRouteDefinitions(): RouteDefinition[] {
-        return getDefs(this.routes)
+        return getDefs(this.routes, this.routeMeta)
+    }
+
+    /**
+     * Attach metadata (query params, descriptions) to a route path.
+     * The metadata is included in `getRouteDefinitions()` output and is
+     * used for Swagger/OpenAPI generation or API documentation tooling.
+     *
+     * Query params are **declarative metadata only** — they don't affect routing.
+     * At runtime, ANY query string is accepted; use `req.queryParam()` to read them.
+     *
+     * @param path The route path (e.g. "/search")
+     * @param meta Metadata describing the route's expected query parameters
+     *
+     * @example
+     * ```ts
+     * router.get("/search", handlerName("search", handler))
+     * router.describe("/search", {
+     *   queryParams: [
+     *     { name: "q",        type: "string",  required: true,  description: "Search query" },
+     *     { name: "limit",    type: "integer", required: false, default: 20 },
+     *     { name: "category", type: "string",  required: false, enum: ["tech", "design"] },
+     *   ]
+     * })
+     * // getRouteDefinitions() → queryParams populated with metadata
+     * ```
+     */
+    describe(path: string, meta: { queryParams?: QueryParamInfo[] }): this {
+        this.routeMeta.set(path, { ...meta })
+        return this
     }
 
     private isMiddlewareRoute(route: EndpointRoute): boolean {

@@ -50,6 +50,15 @@ export interface MiddlewareInfo {
     mergedToTop: boolean
 }
 
+export interface QueryParamInfo {
+    name: string
+    type: "string" | "number" | "integer" | "boolean" | "array"
+    required: boolean
+    description?: string
+    default?: unknown
+    enum?: string[]
+}
+
 export interface RouteDefinition {
     method: string
     path: string
@@ -60,6 +69,7 @@ export interface RouteDefinition {
     middlewareChain: MiddlewareInfo[]
     isMerged: boolean
     stats?: RouteStats
+    queryParams?: QueryParamInfo[]
 }
 
 /**
@@ -124,6 +134,7 @@ export function resolveHandlerName(handler: RequestMiddleware): string {
  */
 export function getRouteDefinitions(
     routes: EndpointRoute[],
+    routeMeta?: Map<string, { queryParams?: QueryParamInfo[] }>,
 ): RouteDefinition[] {
     const seen = new Set<string>()
     const definitions: RouteDefinition[] = []
@@ -150,6 +161,8 @@ export function getRouteDefinitions(
         const statsKey = `${method}:${path}`
         const stats = routeStats.get(statsKey)
 
+        const meta = routeMeta?.get(path)
+
         const def: RouteDefinition & { toJSON?(): Record<string, unknown> } = {
             method,
             path,
@@ -160,10 +173,11 @@ export function getRouteDefinitions(
             middlewareChain,
             isMerged,
             stats: stats ? { ...stats } : undefined,
+            queryParams: meta?.queryParams,
         }
 
         def.toJSON = function (this: RouteDefinition) {
-            return {
+            const base: Record<string, unknown> = {
                 method: this.method,
                 path: this.path,
                 splitPath: this.splitPath,
@@ -174,6 +188,10 @@ export function getRouteDefinitions(
                 isMerged: this.isMerged,
                 stats: this.stats ? { ...this.stats } : undefined,
             }
+            if (this.queryParams) {
+                base.queryParams = this.queryParams
+            }
+            return base
         }
 
         definitions.push(def)

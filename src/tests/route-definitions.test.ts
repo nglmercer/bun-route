@@ -190,6 +190,53 @@ describe("getRouteDefinitions", () => {
   })
 })
 
+describe("getRouteDefinitions with routeMeta (query params)", () => {
+  it("includes queryParams from routeMeta map", () => {
+    const routeMeta = new Map<string, { queryParams?: import("../router/dump").QueryParamInfo[] }>()
+    routeMeta.set("/search", {
+      queryParams: [
+        { name: "q", type: "string", required: true, description: "Search query" },
+        { name: "limit", type: "integer", required: false, default: 10 },
+      ],
+    })
+    routeMeta.set("/users/:id", {
+      queryParams: [{ name: "filter", type: "string", required: false }],
+    })
+
+    const routes: EndpointRoute[] = [
+      {
+        splitPath: splitRoutePath("/search"),
+        method: parseHttpMethods("GET"),
+        handler: () => {},
+      },
+      {
+        splitPath: splitRoutePath("/users/:id"),
+        method: parseHttpMethods("GET"),
+        handler: () => {},
+      },
+      {
+        splitPath: splitRoutePath("/static"),
+        method: parseHttpMethods("GET"),
+        handler: () => {},
+      },
+    ]
+
+    const defs = getRouteDefinitions(routes, routeMeta)
+    const searchDef = defs.find(d => d.path === "/search")
+    expect(searchDef?.queryParams).toHaveLength(2)
+    expect(searchDef?.queryParams?.[0].name).toBe("q")
+    expect(searchDef?.queryParams?.[0].required).toBe(true)
+    expect(searchDef?.queryParams?.[1].default).toBe(10)
+
+    const userDef = defs.find(d => d.path === "/users/:id")
+    expect(userDef?.queryParams).toHaveLength(1)
+    expect(userDef?.queryParams?.[0].name).toBe("filter")
+
+    const staticDef = defs.find(d => d.path === "/static")
+    expect(staticDef?.queryParams).toBeUndefined()
+  })
+})
+
 describe("Router.getRouteDefinitions", () => {
   it("works as router instance method", () => {
     const router = new Router()
@@ -217,6 +264,28 @@ describe("Router.getRouteDefinitions", () => {
     expect(defs).toHaveLength(2)
     expect(defs[0].path).toBe("/api/users")
     expect(defs[1].path).toBe("/api/users/:id")
+  })
+
+  it("includes queryParams from router.describe()", () => {
+    const router = new Router()
+    router.get("/search", () => {})
+    router.get("/users/:id", () => {})
+    router.describe("/search", {
+      queryParams: [
+        { name: "q", type: "string", required: true, description: "Search term" },
+        { name: "limit", type: "integer", required: false, default: 20 },
+      ],
+    })
+
+    const defs = router.getRouteDefinitions()
+    const searchDef = defs.find(d => d.path === "/search")
+    expect(searchDef?.queryParams).toHaveLength(2)
+    expect(searchDef?.queryParams?.[0].name).toBe("q")
+    expect(searchDef?.queryParams?.[0].required).toBe(true)
+    expect(searchDef?.queryParams?.[1].default).toBe(20)
+
+    const userDef = defs.find(d => d.path === "/users/:id")
+    expect(userDef?.queryParams).toBeUndefined()
   })
 
   it("works with sub-router mounting", () => {
