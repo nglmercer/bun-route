@@ -9,34 +9,35 @@ export class Param {
     this.raw = raw
   }
 
-  string(): string | undefined {
-    if (Array.isArray(this.raw) || !this.raw) return undefined
+  string(defaultValue?: string): string | undefined {
+    if (Array.isArray(this.raw) || !this.raw) return defaultValue
     const v = this.raw.trim()
-    return v.length > 0 ? v : undefined
+    if (v.length === 0) return defaultValue
+    return v
   }
 
-  int(): number | undefined {
-    const n = this.number()
+  int(defaultValue?: number): number | undefined {
+    const n = this.number(defaultValue)
     if (n === undefined) return undefined
     return Number.isInteger(n) ? n : Math.trunc(n)
   }
 
-  number(): number | undefined {
+  number(defaultValue?: number): number | undefined {
     const v = this.string()
-    if (!v) return undefined
+    if (!v) return defaultValue
     const n = Number(v)
-    return isNaN(n) ? undefined : n
+    return isNaN(n) ? defaultValue : n
   }
 
-  numberBetween(min: number, max: number): number | undefined {
-    const n = this.number()
-    if (n === undefined) return undefined
+  numberBetween(min: number, max: number, defaultValue?: number): number {
+    const n = this.number(defaultValue)
+    if (n === undefined) return defaultValue ?? 0
     return Math.min(Math.max(n, min), max)
   }
 
-  enum<T extends string>(allowed: T[]): T | undefined {
+  enum<T extends string>(allowed: T[], defaultValue?: T): T | undefined {
     const v = this.string()?.toLowerCase()
-    return allowed.find(a => a.toLowerCase() === v)
+    return allowed.find(a => a.toLowerCase() === v) ?? defaultValue
   }
 
   require(name?: string): string {
@@ -45,11 +46,11 @@ export class Param {
     return v
   }
 
-  boolean(): boolean | undefined {
+  boolean(defaultValue?: boolean): boolean | undefined {
     const v = this.string()?.toLowerCase()
     if (v === "true" || v === "1") return true
     if (v === "false" || v === "0") return false
-    return undefined
+    return defaultValue
   }
 
   array(): string[] {

@@ -1,6 +1,6 @@
 {
   "name": "bun-route",
-  "version": "1.2.0",
+  "version": "1.2.5",
   "description": "A fast, Express-like router for Bun.serve with native Socket.IO support.",
   "type": "module",
   "main": "./src/index.cjs",
@@ -13,7 +13,7 @@
   },
   "scripts": {
     "test": "bun test",
-    "build": "bun run .github/build.ts"
+    "build": "bunx tsc --outDir dist"
   },
   "files": [
     "./src"
