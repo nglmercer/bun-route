@@ -2,7 +2,7 @@ import type { Server } from "bun"
 import type { EndpointRoute } from "../types"
 import { stringifyHttpMethods } from "../method"
 import { isMergedRequestMiddleware, unmergeRequestMiddleware } from "../middleware"
-import { PATH_CHARS } from "../path"
+import { PATH_CHARS, ROUTE_TOKENS, isNamedParam, getNamedParamName } from "../path"
 import type { RequestMiddleware, WebSocketData } from "../types"
 
 export interface RouteStats {
@@ -35,6 +35,131 @@ export function getRouteStats(): Map<string, RouteStats> {
 
 export function clearRouteStats(): void {
     routeStats.clear()
+}
+
+export type RouteParamType = "named" | "wildcard" | "double-wildcard"
+
+export interface RouteParamInfo {
+    name: string
+    type: RouteParamType
+    position: number
+}
+
+export interface MiddlewareInfo {
+    name: string
+    mergedToTop: boolean
+}
+
+export interface RouteDefinition {
+    method: string
+    path: string
+    splitPath: string[]
+    pathParams: RouteParamInfo[]
+    handlerName: string
+    middlewareName?: string
+    middlewareChain: MiddlewareInfo[]
+    isMerged: boolean
+    stats?: RouteStats
+}
+
+/**
+ * Extracts path parameter info from a split path array.
+ * Parses `:named`, `*` (wildcard), and `**` (double-wildcard) segments.
+ * Named params at their original positions; wildcards get auto-named `_0`, `_1`, etc.
+ */
+export function extractPathParams(splitPath: string[] | undefined): RouteParamInfo[] {
+    if (!splitPath) return []
+    const params: RouteParamInfo[] = []
+    let wildcardIndex = 0
+    for (let i = 0; i < splitPath.length; i++) {
+        const segment = splitPath[i]
+        if (isNamedParam(segment)) {
+            params.push({ name: getNamedParamName(segment), type: "named", position: i })
+        } else if (segment === ROUTE_TOKENS.WILDCARD) {
+            params.push({ name: `_${wildcardIndex++}`, type: "wildcard", position: i })
+        } else if (segment === ROUTE_TOKENS.DOUBLE_WILDCARD) {
+            params.push({ name: "wild", type: "double-wildcard", position: i })
+        }
+    }
+    return params
+}
+
+/**
+ * Resolves a handler function name from a RequestMiddleware.
+ */
+export function resolveHandlerName(handler: RequestMiddleware): string {
+    if (isMergedRequestMiddleware(handler)) {
+        return "[merged]"
+    }
+    if (handler && typeof handler.name === "string" && handler.name.length > 0) {
+        return handler.name
+    }
+    if (handler && handler.prototype && typeof handler.prototype.name === "string" && handler.prototype.name.length > 0) {
+        return handler.prototype.name
+    }
+    return "[anonym]"
+}
+
+/**
+ * Returns structured route definitions suitable for Swagger/OpenAPI generation,
+ * API documentation, or dynamic endpoint listings.
+ *
+ * Each definition includes the method, path pattern, extracted path parameters,
+ * middleware chain information, and optional performance stats.
+ *
+ * @param routes The endpoint routes to extract definitions from
+ * @returns An array of structured route definitions
+ *
+ * @example
+ * ```ts
+ * const defs = getRouteDefinitions(router.routes)
+ * for (const def of defs) {
+ *   // Build Swagger path item from def.method, def.path, def.pathParams
+ * }
+ * ```
+ */
+export function getRouteDefinitions(
+    routes: EndpointRoute[],
+): RouteDefinition[] {
+    const seen = new Set<string>()
+    const definitions: RouteDefinition[] = []
+
+    for (const route of routes) {
+        const method = stringifyHttpMethods(route.method)
+        const splitPath = route.splitPath ?? []
+        const path = splitPath.length > 0 ? "/" + splitPath.join("/") : "/"
+        const key = `${method}:${path}`
+
+        if (seen.has(key)) continue
+        seen.add(key)
+
+        const pathParams = extractPathParams(splitPath)
+        const middlewares = unmergeRequestMiddleware(route.handler)
+        const handlerName = resolveHandlerName(route.handler)
+        const isMerged = isMergedRequestMiddleware(route.handler)
+
+        const middlewareChain: MiddlewareInfo[] = middlewares.map((m, i) => ({
+            name: resolveHandlerName(m),
+            mergedToTop: isMerged && i !== middlewares.length - 1,
+        }))
+
+        const statsKey = `${method}:${path}`
+        const stats = routeStats.get(statsKey)
+
+        definitions.push({
+            method,
+            path,
+            splitPath,
+            pathParams,
+            handlerName,
+            middlewareName: route.middlewareName,
+            middlewareChain,
+            isMerged,
+            stats: stats ? { ...stats } : undefined,
+        })
+    }
+
+    return definitions
 }
 
 /**

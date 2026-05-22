@@ -7,7 +7,8 @@ import { innerHandle } from "./router/handler"
 import { isMergedRequestMiddleware } from "./middleware"
 // Import modularized components
 import { parseCookies, storeCookies } from "./router/cookies"
-import { dump as dumpRoutes } from "./router/dump"
+import { dump as dumpRoutes, getRouteDefinitions as getDefs } from "./router/dump"
+import type { RouteDefinition } from "./router/dump"
 import {
     use as registerUse,
     get as registerGet,
@@ -104,6 +105,28 @@ export class Router {
         }
 
         return result
+    }
+
+    /**
+     * Returns structured route definitions with path parameter info, middleware chains,
+     * handler names, and optional performance stats.
+     *
+     * Unlike `getRoutes()` which returns plain method/path pairs, this returns rich
+     * metadata suitable for Swagger/OpenAPI generation, API documentation, or tooling.
+     * Duplicate method+path combinations are deduplicated.
+     *
+     * @example
+     * ```ts
+     * const defs = router.getRouteDefinitions()
+     * for (const def of defs) {
+     *   // def.method   → "GET"
+     *   // def.path     → "/users/:id"
+     *   // def.pathParams → [{ name: "id", type: "named", position: 1 }]
+     * }
+     * ```
+     */
+    getRouteDefinitions(): RouteDefinition[] {
+        return getDefs(this.routes)
     }
 
     private isMiddlewareRoute(route: EndpointRoute): boolean {

@@ -466,6 +466,27 @@ const routes = router.getRoutes();          // excludes middleware
 const allRoutes = router.getRoutes(true);   // includes middleware
 ```
 
+### Structured Route Definitions (for Swagger/OpenAPI)
+
+```ts
+const defs = router.getRouteDefinitions();
+for (const def of defs) {
+  def.method;        // "GET"
+  def.path;          // "/users/:id"
+  def.pathParams;    // [{ name: "id", type: "named", position: 1 }]
+  def.handlerName;   // "getUser"
+  def.middlewareChain;
+  def.stats;         // performance stats (if tracked)
+}
+```
+
+Each `:param` segment is auto-discovered as a path parameter. Wildcards (`*`, `**`) are included too. Use this to generate OpenAPI specs:
+
+```ts
+const swaggerPath = def.path.replace(/:(\w+)/g, "{$1}");
+// "/users/:id" → "/users/{id}"
+```
+
 ### Performance Stats
 
 ```ts

@@ -83,9 +83,92 @@ const allRoutes = router.getRoutes(true);
 ```
 
 This is useful for:
-- API documentation generation
-- Building dynamic endpoint listings
+- Basic endpoint listings
 - Debugging what's registered
+
+---
+
+## Structured Route Definitions (Swagger/OpenAPI)
+
+### `router.getRouteDefinitions()`
+
+Returns rich structured metadata suitable for Swagger/OpenAPI generation, API documentation tools, or any use case requiring detailed route introspection.
+
+```ts
+const defs = router.getRouteDefinitions();
+// [
+//   {
+//     method: "GET",
+//     path: "/users/:id",
+//     splitPath: ["users", ":id"],
+//     pathParams: [{ name: "id", type: "named", position: 1 }],
+//     handlerName: "getUser",
+//     middlewareChain: [{ name: "auth", mergedToTop: true }],
+//     isMerged: false,
+//     stats: { requestCount: 150, totalTimeMs: 2345, avgTimeMs: 15.64 },
+//   },
+// ]
+```
+
+Each definition includes:
+| Field | Type | Description |
+|-------|------|-------------|
+| `method` | `string` | HTTP method (`GET`, `POST`, `PUT`, etc.) |
+| `path` | `string` | Route pattern (`/users/:id`, `/files/*`) |
+| `splitPath` | `string[]` | Path segments |
+| `pathParams` | `RouteParamInfo[]` | Extracted path parameters |
+| `handlerName` | `string` | Handler function name |
+| `middlewareName` | `string \| undefined` | Middleware identifier (if set) |
+| `middlewareChain` | `MiddlewareInfo[]` | Unrolled middleware list |
+| `isMerged` | `boolean` | Whether handlers are merged |
+| `stats` | `RouteStats \| undefined` | Performance stats (if tracked) |
+
+### `RouteParamInfo`
+
+```ts
+interface RouteParamInfo {
+  name: string;       // "id", "_0", "wild"
+  type: "named" | "wildcard" | "double-wildcard";
+  position: number;   // segment index in path
+}
+```
+
+- `named` → from `:param` segments
+- `wildcard` → from `*` segments (auto-named `_0`, `_1`, ...)
+- `double-wildcard` → from `**` segments (named `wild`)
+
+### Swagger Example
+
+```ts
+const defs = router.getRouteDefinitions();
+const swaggerPaths: Record<string, any> = {};
+
+for (const def of defs) {
+  const swaggerPath = def.path.replace(/:(\w+)/g, "{$1}");
+  
+  if (!swaggerPaths[swaggerPath]) {
+    swaggerPaths[swaggerPath] = {};
+  }
+
+  swaggerPaths[swaggerPath][def.method.toLowerCase()] = {
+    parameters: def.pathParams.map((p) => ({
+      name: p.name,
+      in: p.type === "named" ? "path" : "query",
+      required: p.type === "named",
+      schema: { type: "string" },
+    })),
+    summary: def.handlerName,
+  };
+}
+```
+
+### Standalone function
+
+```ts
+import { getRouteDefinitions } from "bun-route";
+
+const defs = getRouteDefinitions(router.routes);
+```
 
 ---
 
