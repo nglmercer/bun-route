@@ -19,7 +19,7 @@ function getAllowOrigin(origin: string | null, options: CorsOptions): string | u
     }
     const allowed = options.origin
     if (allowed === undefined || allowed === "*") {
-        return "*"
+        return options.credentials ? origin : "*"
     }
     if (typeof allowed === "string") {
         return origin === allowed ? origin : undefined

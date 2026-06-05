@@ -36,7 +36,7 @@ describe("CORS e2e - POST/GET with cors middleware", () => {
     server.stop();
   });
 
-  it("POST response includes Access-Control-Allow-Origin", async () => {
+  it("POST response includes Access-Control-Allow-Origin (reflected origin with credentials)", async () => {
     const resp = await fetch(`${baseUrl}/api/v1/auth/register`, {
       method: "POST",
       headers: {
@@ -47,21 +47,21 @@ describe("CORS e2e - POST/GET with cors middleware", () => {
     });
 
     expect(resp.status).toBe(200);
-    expect(resp.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(resp.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:5173");
     expect(resp.headers.get("Access-Control-Allow-Credentials")).toBe("true");
   });
 
-  it("GET response includes Access-Control-Allow-Origin", async () => {
+  it("GET response includes Access-Control-Allow-Origin (reflected origin with credentials)", async () => {
     const resp = await fetch(`${baseUrl}/api/v1/auth/profile`, {
       headers: { "Origin": "http://localhost:5173" },
     });
 
     expect(resp.status).toBe(200);
-    expect(resp.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(resp.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:5173");
     expect(resp.headers.get("Access-Control-Allow-Credentials")).toBe("true");
   });
 
-  it("OPTIONS preflight returns correct CORS headers", async () => {
+  it("OPTIONS preflight reflects origin when credentials: true", async () => {
     const resp = await fetch(`${baseUrl}/api/v1/auth/register`, {
       method: "OPTIONS",
       headers: {
@@ -72,7 +72,7 @@ describe("CORS e2e - POST/GET with cors middleware", () => {
     });
 
     expect(resp.status).toBe(204);
-    expect(resp.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(resp.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:5173");
     expect(resp.headers.get("Access-Control-Allow-Methods")).toContain("POST");
     expect(resp.headers.get("Access-Control-Allow-Headers")).toContain("Content-Type");
     expect(resp.headers.get("Access-Control-Max-Age")).toBe("3600");
