@@ -94,7 +94,7 @@ export class ResponseBuilder {
      * @returns void because it is submitted to the client
      */
     sendFile(file: import("bun").BunFile, code?: number): void {
-        this.reset()
+        this._resetForSend()
         this.bodyInit = file
         this.setHeader(HTTP_HEADERS.CONTENT_TYPE, file.type)
         if (code) this.statusCode = code
@@ -113,7 +113,7 @@ export class ResponseBuilder {
      * @returns void because it is submitted to the client
      */
     sendNoContent(): void {
-        this.reset()
+        this._resetForSend()
         this.statusCode = HTTP_STATUS.NO_CONTENT
         this.responded = true
         this.submit = true
@@ -161,16 +161,21 @@ export class ResponseBuilder {
         )
     }
 
-    /**
-     * Resets the response builder to its default state, clearing all options and properties.
-     * @returns The response builder instance
-     */
-    reset(): ResponseBuilder {
+    private _resetForSend(): ResponseBuilder {
         this.submit = false
         this.responded = false
         this.statusCode = HTTP_STATUS.OK
         this.statusText = undefined
         this.bodyInit = null
+        return this
+    }
+
+    /**
+     * Resets the response builder to its default state, clearing all options and properties.
+     * @returns The response builder instance
+     */
+    reset(): ResponseBuilder {
+        this._resetForSend()
         this.headers = []
         return this
     }
@@ -304,7 +309,7 @@ export class ResponseBuilder {
      */
     sendJson(data: unknown, code?: number): void {
         const savedStatusCode = this.statusCode
-        this.reset()
+        this._resetForSend()
         this.statusCode = savedStatusCode
         this.bodyInit = JSON.stringify(data)
         this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'application/json')
@@ -327,7 +332,7 @@ export class ResponseBuilder {
      * @returns void because it is submitted to the client
      */
     sendText(data: string, code?: number): void {
-        this.reset()
+        this._resetForSend()
         this.bodyInit = data
         this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'text/plain; charset=UTF-8')
         if (code) this.statusCode = code
@@ -347,7 +352,7 @@ export class ResponseBuilder {
      * @returns void because it is submitted to the client
      */
     sendHtml(data: string, code?: number): void {
-        this.reset()
+        this._resetForSend()
         this.bodyInit = data
         this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'text/html; charset=UTF-8')
         if (code) this.statusCode = code
@@ -367,7 +372,7 @@ export class ResponseBuilder {
      * @returns void because it is submitted to the client
      */
     sendError(message: string, code: number = HTTP_STATUS.INTERNAL_SERVER_ERROR): void {
-        this.reset()
+        this._resetForSend()
         this.bodyInit = JSON.stringify({ error: message, status: code })
         this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'application/json')
         this.statusCode = code
@@ -387,7 +392,7 @@ export class ResponseBuilder {
      * @returns void because it is submitted to the client
      */
     sendRedirect(url: string, perma: boolean = false): void {
-        this.reset()
+        this._resetForSend()
         this.statusCode = perma ? HTTP_STATUS.PERMANENT_REDIRECT : HTTP_STATUS.TEMPORARY_REDIRECT
         this.headers.push([HTTP_HEADERS.LOCATION, url])
         this.responded = true
@@ -401,7 +406,7 @@ export class ResponseBuilder {
      * @returns void because it is submitted to the client
      */
     sendRedirectCustom(url: string, status: number): void {
-        this.reset()
+        this._resetForSend()
         this.statusCode = status
         this.headers.push([HTTP_HEADERS.LOCATION, url])
         this.responded = true
