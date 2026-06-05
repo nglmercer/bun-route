@@ -47,7 +47,9 @@ export function mergeRequestMiddlewares(
             return result
         }
 
-        if (res.submit === true || req.upgraded === true) {
+        // Check responded (set immediately when any response method is called)
+        // to prevent race conditions with catch-all routes
+        if (res.responded === true || res.submit === true || req.upgraded === true) {
             return
         }
 
@@ -61,7 +63,9 @@ export function mergeRequestMiddlewares(
                 await p
             }
 
-            if ((res.submit as boolean) === true || req.upgraded === true) {
+            // Check responded (set immediately when any response method is called)
+            // to prevent race conditions with catch-all routes
+            if ((res.responded as boolean) === true || (res.submit as boolean) === true || req.upgraded === true) {
                 return
             }
         }
@@ -80,7 +84,9 @@ export function mergeRequestMiddlewares(
                 return mergedAsync(i, p, ctx)
             }
 
-            if (res.submit === true || req.upgraded === true) {
+            // Check responded (set immediately when any response method is called)
+            // to prevent race conditions with catch-all routes
+            if (res.responded === true || res.submit === true || req.upgraded === true) {
                 return
             }
         }

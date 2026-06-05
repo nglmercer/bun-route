@@ -174,7 +174,9 @@ export function route(
             return routeAsync(routes, i, p, ctx)
         }
 
-        if (res.submit === true || req.upgraded === true) {
+        // Check responded (set immediately when any response method is called)
+        // to prevent race conditions with catch-all routes
+        if ((res.responded as boolean) === true || res.submit === true || req.upgraded === true) {
             return
         }
     }
@@ -204,7 +206,9 @@ export async function routeAsync(
         return result
     }
 
-    if (res.submit === true || req.upgraded === true) {
+    // Check responded (set immediately when any response method is called)
+    // to prevent race conditions with catch-all routes
+    if ((res.responded as boolean) === true || res.submit === true || req.upgraded === true) {
         return
     }
 
@@ -235,7 +239,9 @@ export async function routeAsync(
             await p
         }
 
-        if ((res.submit as boolean) === true || req.upgraded === true) {
+        // Check responded (set immediately when any response method is called)
+        // to prevent race conditions with catch-all routes
+        if ((res.responded as boolean) === true || (res.submit as boolean) === true || req.upgraded === true) {
             return
         }
     }

@@ -44,8 +44,13 @@ export class ResponseBuilder {
     statusText?: string
     bodyInit: BunBodyInit = null
     headers: [string, string][] = []
+    responded: boolean
 
     beforeSentHooks: ((res: ResponseBuilder) => Awaitable<void>)[] | undefined
+
+    constructor() {
+        this.responded = false
+    }
 
     /**
      * Adds a hook that will be called before the response is build for sending
@@ -93,6 +98,7 @@ export class ResponseBuilder {
         this.bodyInit = file
         this.setHeader(HTTP_HEADERS.CONTENT_TYPE, file.type)
         if (code) this.statusCode = code
+        this.responded = true
         this.submit = true
     }
     /**
@@ -109,6 +115,7 @@ export class ResponseBuilder {
     sendNoContent(): void {
         this.reset()
         this.statusCode = HTTP_STATUS.NO_CONTENT
+        this.responded = true
         this.submit = true
     }
     /**
@@ -160,6 +167,7 @@ export class ResponseBuilder {
      */
     reset(): ResponseBuilder {
         this.submit = false
+        this.responded = false
         this.statusCode = HTTP_STATUS.OK
         this.statusText = undefined
         this.bodyInit = null
@@ -275,12 +283,16 @@ export class ResponseBuilder {
 
     /**
      * Submits the response to the client, with an optional body.
+     * Sets responded = true immediately to prevent race conditions with other routes.
      * @param bodyInit The body of the response, if any
      */
     send(
         bodyInit: BunBodyInit = null,
     ): void {
         this.bodyInit = bodyInit
+        // Set responded = true BEFORE sending to prevent race conditions
+        // with other routes trying to handle the same request
+        this.responded = true
         this.submit = true
     }
     /**
@@ -299,6 +311,7 @@ export class ResponseBuilder {
         if (code) {
             this.statusCode = code
         }
+        this.responded = true
         this.submit = true
     }
     /**
@@ -318,6 +331,7 @@ export class ResponseBuilder {
         this.bodyInit = data
         this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'text/plain; charset=UTF-8')
         if (code) this.statusCode = code
+        this.responded = true
         this.submit = true
     }
     /**
@@ -337,6 +351,7 @@ export class ResponseBuilder {
         this.bodyInit = data
         this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'text/html; charset=UTF-8')
         if (code) this.statusCode = code
+        this.responded = true
         this.submit = true
     }
     /**
@@ -356,6 +371,7 @@ export class ResponseBuilder {
         this.bodyInit = JSON.stringify({ error: message, status: code })
         this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'application/json')
         this.statusCode = code
+        this.responded = true
         this.submit = true
     }
     /**
@@ -374,6 +390,7 @@ export class ResponseBuilder {
         this.reset()
         this.statusCode = perma ? HTTP_STATUS.PERMANENT_REDIRECT : HTTP_STATUS.TEMPORARY_REDIRECT
         this.headers.push([HTTP_HEADERS.LOCATION, url])
+        this.responded = true
         this.submit = true
     }
 
@@ -387,6 +404,7 @@ export class ResponseBuilder {
         this.reset()
         this.statusCode = status
         this.headers.push([HTTP_HEADERS.LOCATION, url])
+        this.responded = true
         this.submit = true
     }
 

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Upload & Preview</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; padding: 2rem; }
+  h1 { text-align: center; margin-bottom: 2rem; font-size: 1.8rem; }
+  .upload-area {
+    max-width: 600px; margin: 0 auto 2rem; padding: 2rem;
+    border: 2px dashed #444; border-radius: 12px; text-align: center;
+    transition: border-color .2s, background .2s; cursor: pointer;
+  }
+  .upload-area:hover, .upload-area.dragover { border-color: #646cff; background: #1a1a2e; }
+  .upload-area .icon { font-size: 2.5rem; margin-bottom: .5rem; }
+  .upload-area p { color: #888; font-size: .9rem; margin-top: .5rem; }
+  .upload-area input { display: none; }
+  .upload-btn {
+    margin-top: 1rem; padding: .6rem 1.5rem; background: #646cff; color: #fff;
+    border: none; border-radius: 8px; cursor: pointer; font-size: 1rem;
+    transition: background .2s;
+  }
+  .upload-btn:hover { background: #535bf2; }
+  .upload-btn:disabled { background: #333; cursor: not-allowed; }
+  #status { text-align: center; margin: 1rem 0; min-height: 1.5rem; font-size: .9rem; }
+  #status.error { color: #f44; }
+  #status.success { color: #4caf50; }
+  .gallery {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem; max-width: 900px; margin: 0 auto;
+  }
+  .card {
+    position: relative; background: #1a1a1a; border-radius: 10px; overflow: hidden;
+    border: 1px solid #2a2a2a; transition: transform .2s;
+  }
+  .card:hover { transform: translateY(-2px); }
+  .card img { width: 100%; height: 180px; object-fit: cover; display: block; cursor: pointer; }
+  .card .info { padding: .6rem; font-size: .8rem; color: #aaa; }
+  .card .info .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .delete-btn {
+    position: absolute; top: 6px; right: 6px; background: rgba(244,68,68,.85);
+    color: #fff; border: none; border-radius: 50%; width: 28px; height: 28px;
+    cursor: pointer; font-size: .9rem; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity .2s;
+  }
+  .card:hover .delete-btn { opacity: 1; }
+  .modal {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.9);
+    z-index: 100; align-items: center; justify-content: center; cursor: zoom-out;
+  }
+  .modal.active { display: flex; }
+  .modal img { max-width: 90vw; max-height: 90vh; border-radius: 8px; }
+  .empty { text-align: center; color: #555; margin-top: 3rem; }
+</style>
+</head>
+<body>
+  <h1>Image Upload & Preview</h1>
+
+  <div class="upload-area" id="dropZone">
+    <div class="icon">📁</div>
+    <strong>Click or drop images here</strong>
+    <p>PNG, JPG, GIF, WebP — max 10 MB</p>
+    <input type="file" id="fileInput" accept="image/*" multiple>
+    <button class="upload-btn" id="uploadBtn" disabled>Upload</button>
+  </div>
+
+  <div id="status"></div>
+  <div class="gallery" id="gallery"></div>
+  <div class="modal" id="modal"><img id="modalImg" src=""></div>
+
+<script>
+  const dropZone = document.getElementById("dropZone");
+  const fileInput = document.getElementById("fileInput");
+  const uploadBtn = document.getElementById("uploadBtn");
+  const status = document.getElementById("status");
+  const gallery = document.getElementById("gallery");
+  const modal = document.getElementById("modal");
+  const modalImg = document.getElementById("modalImg");
+  let selectedFiles = [];
+
+  dropZone.addEventListener("click", (e) => {
+    if (e.target !== uploadBtn) fileInput.click();
+  });
+  dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("dragover"); });
+  dropZone.addEventListener("dragleave", () => dropZone.classList.remove("dragover"));
+  dropZone.addEventListener("drop", (e) => {
+    e.preventDefault(); dropZone.classList.remove("dragover");
+    handleFiles(e.dataTransfer.files);
+  });
+  fileInput.addEventListener("change", () => handleFiles(fileInput.files));
+
+  function handleFiles(files) {
+    selectedFiles = [...files].filter(f => f.type.startsWith("image/"));
+    uploadBtn.disabled = selectedFiles.length === 0;
+    uploadBtn.textContent = selectedFiles.length ? "Upload " + selectedFiles.length + " image(s)" : "Upload";
+  }
+
+  uploadBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (!selectedFiles.length) return;
+    uploadBtn.disabled = true;
+    status.className = ""; status.textContent = "Uploading...";
+    let ok = 0, fail = 0;
+    for (const file of selectedFiles) {
+      const fd = new FormData(); fd.append("image", file);
+      try {
+        const r = await fetch("/upload", { method: "POST", body: fd });
+        if (r.ok) ok++; else fail++;
+      } catch { fail++; }
+    }
+    status.className = fail ? "error" : "success";
+    status.textContent = fail ? fail + " failed" : ok + " uploaded!";
+    selectedFiles = []; fileInput.value = ""; uploadBtn.disabled = true; uploadBtn.textContent = "Upload";
+    loadGallery();
+  });
+
+  async function loadGallery() {
+    const res = await fetch("/images");
+    const images = await res.json();
+    if (!images.length) { gallery.innerHTML = '<p class="empty">No images yet</p>'; return; }
+    gallery.innerHTML = images.map(img => {
+      const size = img.size < 1048576 ? (img.size/1024).toFixed(1)+" KB" : (img.size/1048576).toFixed(1)+" MB";
+      return '<div class="card">' +
+        '<img src="' + img.url + '" loading="lazy" onclick="openModal(this.src)">' +
+        '<button class="delete-btn" data-name="' + img.name + '">✕</button>' +
+        '<div class="info"><div class="name">' + img.name + '</div>' + size + '</div></div>';
+    }).join("");
+    gallery.querySelectorAll(".delete-btn").forEach(btn => {
+      btn.addEventListener("click", () => deleteImage(btn.dataset.name));
+    });
+  }
+
+  function openModal(src) { modalImg.src = src; modal.classList.add("active"); }
+  modal.addEventListener("click", () => modal.classList.remove("active"));
+
+  async function deleteImage(name) {
+    if (!confirm("Delete this image?")) return;
+    await fetch("/images/" + name, { method: "DELETE" });
+    loadGallery();
+  }
+
+  loadGallery();
+</script>
+</body>
+</html>
