@@ -33,6 +33,7 @@ import { rateLimit as registerRateLimit, type RateLimitOptions } from "./router/
 import { requestId as registerRequestId, type RequestIdOptions } from "./router/requestId"
 import { timeout as registerTimeout, type TimeoutOptions } from "./router/timeout"
 import { fileUpload as registerFileUpload, type FileUploadOptions, getFile, getFiles, getFileFieldNames, getFormFields } from "./router/fileUpload"
+import type { Handler, Route, RouteCollection, AppendRoute } from "./typedRouter"
 
 export type ErrorHandler = (err: Error, ctx: Context) => Awaitable<void>
 
@@ -54,12 +55,13 @@ export type ErrorHandler = (err: Error, ctx: Context) => Awaitable<void>
  * const server = router.listen()
  * ```
  */
-export class Router {
+export class Router<T extends RouteCollection = []> {
     routes: EndpointRoute[] = []
     mergeHandlers: boolean = true
     private wsHandlers?: Bun.WebSocketHandler<WebSocketData>
     private errorHandler?: ErrorHandler
     private routeMeta = new Map<string, { queryParams?: QueryParamInfo[] }>()
+    private _typedRoutes: T = [] as unknown as T
 
     // Expose cookie methods as static
     static parseCookies = parseCookies
@@ -129,6 +131,23 @@ export class Router {
      */
     getRouteDefinitions(): RouteDefinition[] {
         return getDefs(this.routes, this.routeMeta)
+    }
+
+    /**
+     * Returns the typed route collection for type inference.
+     * Use with InferRoutes and GetReturnType to extract response types.
+     * 
+     * @example
+     * ```ts
+     * const router = new Router()
+     *     .get("/users", () => [{ id: 1, name: "Alice" }])
+     * 
+     * type Routes = typeof router.getTypedRoutes()
+     * type UsersResponse = GetReturnType<typeof router, "GET", "/users">
+     * ```
+     */
+    getTypedRoutes(): T {
+        return this._typedRoutes
     }
 
     /**
@@ -271,13 +290,20 @@ export class Router {
      * @param handlers Additional middleware functions to apply to the route.
      * @returns The router instance.
      */
-    get(
-        path: string,
-        handler: RequestMiddleware,
+    get<Path extends string, Body>(
+        path: Path,
+        handler: Handler<Body>,
         ...handlers: RequestMiddleware[]
-    ): Router {
-        registerGet(this.routes, this.mergeHandlers, path, handler, ...handlers)
-        return this
+    ): Router<AppendRoute<T, "GET", Path, Body>> {
+        const wrappedHandler: RequestMiddleware = async (ctx) => {
+            const result = await (handler as Handler<unknown>)(ctx)
+            if (result !== undefined && result !== null) {
+                ctx.res.json(result)
+            }
+        }
+        registerGet(this.routes, this.mergeHandlers, path, wrappedHandler, ...handlers)
+        this._typedRoutes = [...this._typedRoutes, { method: "GET", path, handler }] as unknown as AppendRoute<T, "GET", Path, Body>
+        return this as unknown as Router<AppendRoute<T, "GET", Path, Body>>
     }
 
     /**
@@ -286,13 +312,20 @@ export class Router {
      * @param handler The handler(s) to run
      * @returns The router
      */
-    post(
-        path: string,
-        handler: RequestMiddleware,
+    post<Path extends string, Body>(
+        path: Path,
+        handler: Handler<Body>,
         ...handlers: RequestMiddleware[]
-    ): Router {
-        registerPost(this.routes, this.mergeHandlers, path, handler, ...handlers)
-        return this
+    ): Router<AppendRoute<T, "POST", Path, Body>> {
+        const wrappedHandler: RequestMiddleware = async (ctx) => {
+            const result = await (handler as Handler<unknown>)(ctx)
+            if (result !== undefined && result !== null) {
+                ctx.res.json(result)
+            }
+        }
+        registerPost(this.routes, this.mergeHandlers, path, wrappedHandler, ...handlers)
+        this._typedRoutes = [...this._typedRoutes, { method: "POST", path, handler }] as unknown as AppendRoute<T, "POST", Path, Body>
+        return this as unknown as Router<AppendRoute<T, "POST", Path, Body>>
     }
 
     /**
@@ -302,13 +335,20 @@ export class Router {
      * @param handlers Additional handlers to run before the main handler.
      * @returns The Router instance.
      */
-    put(
-        path: string,
-        handler: RequestMiddleware,
+    put<Path extends string, Body>(
+        path: Path,
+        handler: Handler<Body>,
         ...handlers: RequestMiddleware[]
-    ): Router {
-        registerPut(this.routes, this.mergeHandlers, path, handler, ...handlers)
-        return this
+    ): Router<AppendRoute<T, "PUT", Path, Body>> {
+        const wrappedHandler: RequestMiddleware = async (ctx) => {
+            const result = await (handler as Handler<unknown>)(ctx)
+            if (result !== undefined && result !== null) {
+                ctx.res.json(result)
+            }
+        }
+        registerPut(this.routes, this.mergeHandlers, path, wrappedHandler, ...handlers)
+        this._typedRoutes = [...this._typedRoutes, { method: "PUT", path, handler }] as unknown as AppendRoute<T, "PUT", Path, Body>
+        return this as unknown as Router<AppendRoute<T, "PUT", Path, Body>>
     }
 
     /**
@@ -318,13 +358,20 @@ export class Router {
      * @param handlers Additional middleware functions to call.
      * @returns this
      */
-    delete(
-        path: string,
-        handler: RequestMiddleware,
+    delete<Path extends string, Body>(
+        path: Path,
+        handler: Handler<Body>,
         ...handlers: RequestMiddleware[]
-    ): Router {
-        registerDelete(this.routes, this.mergeHandlers, path, handler, ...handlers)
-        return this
+    ): Router<AppendRoute<T, "DELETE", Path, Body>> {
+        const wrappedHandler: RequestMiddleware = async (ctx) => {
+            const result = await (handler as Handler<unknown>)(ctx)
+            if (result !== undefined && result !== null) {
+                ctx.res.json(result)
+            }
+        }
+        registerDelete(this.routes, this.mergeHandlers, path, wrappedHandler, ...handlers)
+        this._typedRoutes = [...this._typedRoutes, { method: "DELETE", path, handler }] as unknown as AppendRoute<T, "DELETE", Path, Body>
+        return this as unknown as Router<AppendRoute<T, "DELETE", Path, Body>>
     }
 
     /**
@@ -334,13 +381,20 @@ export class Router {
      * @param handlers Additional middleware functions to call.
      * @returns this
      */
-    patch(
-        path: string,
-        handler: RequestMiddleware,
+    patch<Path extends string, Body>(
+        path: Path,
+        handler: Handler<Body>,
         ...handlers: RequestMiddleware[]
-    ): Router {
-        registerPatch(this.routes, this.mergeHandlers, path, handler, ...handlers)
-        return this
+    ): Router<AppendRoute<T, "PATCH", Path, Body>> {
+        const wrappedHandler: RequestMiddleware = async (ctx) => {
+            const result = await (handler as Handler<unknown>)(ctx)
+            if (result !== undefined && result !== null) {
+                ctx.res.json(result)
+            }
+        }
+        registerPatch(this.routes, this.mergeHandlers, path, wrappedHandler, ...handlers)
+        this._typedRoutes = [...this._typedRoutes, { method: "PATCH", path, handler }] as unknown as AppendRoute<T, "PATCH", Path, Body>
+        return this as unknown as Router<AppendRoute<T, "PATCH", Path, Body>>
     }
 
     /**

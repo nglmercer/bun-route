@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test"
-import { TypedRouter, type InferRoutes, type GetReturnType } from "../typedRouter"
+import { Router, type InferRoutes, type GetReturnType } from "../router"
 
-describe("TypedRouter", () => {
+describe("Router typed routes", () => {
     it("registers routes and returns data", async () => {
-        const router = new TypedRouter()
+        const router = new Router()
             .get("/users", () => [{ id: 1, name: "Alice" }])
             .post("/users", () => ({ id: 2, name: "Bob" }))
 
@@ -16,7 +16,7 @@ describe("TypedRouter", () => {
     })
 
     it("handles requests correctly", async () => {
-        const router = new TypedRouter()
+        const router = new Router()
             .get("/hello", () => ({ message: "Hello World" }))
 
         const server = Bun.serve({ port: 0, fetch: router.handle })
@@ -34,7 +34,7 @@ describe("TypedRouter", () => {
             console.log(`${ctx.req.method} ${ctx.req.url}`)
         }
 
-        const router = new TypedRouter()
+        const router = new Router()
             .get("/test", () => ({ ok: true }), logger)
 
         const routes = router.getRoutes()
@@ -42,7 +42,7 @@ describe("TypedRouter", () => {
     })
 
     it("type inference works", () => {
-        const router = new TypedRouter()
+        const router = new Router()
             .get("/users", () => [{ id: 1, name: "Alice" }])
             .post("/users", () => ({ id: 2, name: "Bob" }))
             .get("/users/:id", () => ({ id: 1, name: "Alice", email: "alice@example.com" }))
@@ -63,7 +63,7 @@ describe("TypedRouter", () => {
     })
 
     it("chains multiple routes", () => {
-        const router = new TypedRouter()
+        const router = new Router()
             .get("/a", () => "a")
             .get("/b", () => "b")
             .get("/c", () => "c")
@@ -74,5 +74,16 @@ describe("TypedRouter", () => {
 
         const routes = router.getRoutes()
         expect(routes).toHaveLength(7)
+    })
+
+    it("getTypedRoutes returns typed route collection", () => {
+        const router = new Router()
+            .get("/users", () => [{ id: 1 }])
+            .post("/users", () => ({ created: true }))
+
+        const typedRoutes = router.getTypedRoutes()
+        expect(typedRoutes).toHaveLength(2)
+        expect(typedRoutes[0].method).toBe("GET")
+        expect(typedRoutes[1].method).toBe("POST")
     })
 })

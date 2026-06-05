@@ -1,30 +1,27 @@
-import { TypedRouter, type InferRoutes, type GetReturnType } from "../src/typedRouter"
+import { Router, type InferRoutes, type GetReturnType } from "../src/index"
 
-const router = new TypedRouter()
+const router = new Router()
+    .get("/users", () => {
+        return [
+            { id: 1, name: "Alice" },
+            { id: 2, name: "Bob" },
+        ]
+    })
+    .post("/users", (ctx) => {
+        return { id: 3, name: "Charlie" }
+    })
+    .get("/users/:id", (ctx) => {
+        return { id: 1, name: "Alice", email: "alice@example.com" }
+    })
 
-const routerWithUsers = router.get("/users", () => {
-    return [
-        { id: 1, name: "Alice" },
-        { id: 2, name: "Bob" },
-    ]
-})
-
-const routerWithCreateUser = routerWithUsers.post("/users", (ctx) => {
-    return { id: 3, name: "Charlie" }
-})
-
-const routerWithGetUser = routerWithCreateUser.get("/users/:id", (ctx) => {
-    return { id: 1, name: "Alice", email: "alice@example.com" }
-})
-
-type AllRoutes = InferRoutes<typeof routerWithGetUser>
-type UsersResponse = GetReturnType<typeof routerWithGetUser, "GET", "/users">
-type CreateUserResponse = GetReturnType<typeof routerWithGetUser, "POST", "/users">
+type AllRoutes = InferRoutes<typeof router>
+type UsersResponse = GetReturnType<typeof router, "GET", "/users">
+type CreateUserResponse = GetReturnType<typeof router, "POST", "/users">
 
 export const server = Bun.serve({
     port: 3006,
-    fetch: routerWithGetUser.handle,
+    fetch: router.handle,
 })
 
 console.log("Server running on http://localhost:3006")
-console.log("Routes:", routerWithGetUser.getRoutes().map(r => `${r.method} ${r.path}`))
+console.log("Routes:", router.getRoutes().map(r => `${r.method} ${r.path}`))
