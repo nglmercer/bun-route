@@ -1,4 +1,4 @@
-import type { Context, RequestMiddleware } from "./types"
+import type { Context } from "./types"
 
 export type Handler<T> = (ctx: Context) => T | Promise<T>
 
@@ -29,7 +29,7 @@ type GetRoute<
         : never
     : never
 
-export type InferRoutes<R> = R extends { getTypedRoutes(): infer T } ? T : never
+export type InferRoutes<R> = R extends { getTypedRoutes(): infer T extends RouteCollection } ? T : []
 
 export type GetReturnType<
     R,

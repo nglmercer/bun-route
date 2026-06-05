@@ -162,15 +162,15 @@ describe("Router", () => {
   test("chaining methods return router instance", () => {
     const router = new Router()
     const handler: RequestMiddleware = () => { }
-    expect(router.get("/1", handler)).toBe(router)
-    expect(router.post("/2", handler)).toBe(router)
-    expect(router.put("/3", handler)).toBe(router)
-    expect(router.delete("/4", handler)).toBe(router)
-    expect(router.patch("/5", handler)).toBe(router)
-    expect(router.trace("/6", handler)).toBe(router)
-    expect(router.head("/7", handler)).toBe(router)
-    expect(router.connect("/8", handler)).toBe(router)
-    expect(router.options("/9", handler)).toBe(router)
+    expect(router.get("/1", handler) as unknown).toBe(router)
+    expect(router.post("/2", handler) as unknown).toBe(router)
+    expect(router.put("/3", handler) as unknown).toBe(router)
+    expect(router.delete("/4", handler) as unknown).toBe(router)
+    expect(router.patch("/5", handler) as unknown).toBe(router)
+    expect(router.trace("/6", handler) as unknown).toBe(router)
+    expect(router.head("/7", handler) as unknown).toBe(router)
+    expect(router.connect("/8", handler) as unknown).toBe(router)
+    expect(router.options("/9", handler) as unknown).toBe(router)
   })
 
   test("request with POST method", async () => {

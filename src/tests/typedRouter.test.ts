@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test"
-import { Router, type InferRoutes, type GetReturnType } from "../router"
+import { Router, type GetReturnType } from "../index"
 
 describe("Router typed routes", () => {
     it("registers routes and returns data", async () => {
@@ -47,7 +47,6 @@ describe("Router typed routes", () => {
             .post("/users", () => ({ id: 2, name: "Bob" }))
             .get("/users/:id", () => ({ id: 1, name: "Alice", email: "alice@example.com" }))
 
-        type Routes = InferRoutes<typeof router>
         type UsersList = GetReturnType<typeof router, "GET", "/users">
         type CreateUser = GetReturnType<typeof router, "POST", "/users">
         type GetUser = GetReturnType<typeof router, "GET", "/users/:id">

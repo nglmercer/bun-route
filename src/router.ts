@@ -33,7 +33,7 @@ import { rateLimit as registerRateLimit, type RateLimitOptions } from "./router/
 import { requestId as registerRequestId, type RequestIdOptions } from "./router/requestId"
 import { timeout as registerTimeout, type TimeoutOptions } from "./router/timeout"
 import { fileUpload as registerFileUpload, type FileUploadOptions, getFile, getFiles, getFileFieldNames, getFormFields } from "./router/fileUpload"
-import type { Handler, Route, RouteCollection, AppendRoute } from "./typedRouter"
+import type { Handler, RouteCollection, AppendRoute } from "./typedRouter"
 
 export type ErrorHandler = (err: Error, ctx: Context) => Awaitable<void>
 
@@ -61,7 +61,7 @@ export class Router<T extends RouteCollection = []> {
     private wsHandlers?: Bun.WebSocketHandler<WebSocketData>
     private errorHandler?: ErrorHandler
     private routeMeta = new Map<string, { queryParams?: QueryParamInfo[] }>()
-    private _typedRoutes: T = [] as unknown as T
+    private _typedRoutes: RouteCollection = []
 
     // Expose cookie methods as static
     static parseCookies = parseCookies
@@ -147,7 +147,7 @@ export class Router<T extends RouteCollection = []> {
      * ```
      */
     getTypedRoutes(): T {
-        return this._typedRoutes
+        return this._typedRoutes as unknown as T
     }
 
     /**
@@ -278,7 +278,7 @@ export class Router<T extends RouteCollection = []> {
         path: string,
         handler: RequestMiddleware,
         ...handlers: RequestMiddleware[]
-    ): Router {
+    ): Router<T> {
         registerUse(this.routes, this.mergeHandlers, method, path, handler, ...handlers)
         return this
     }
@@ -302,7 +302,7 @@ export class Router<T extends RouteCollection = []> {
             }
         }
         registerGet(this.routes, this.mergeHandlers, path, wrappedHandler, ...handlers)
-        this._typedRoutes = [...this._typedRoutes, { method: "GET", path, handler }] as unknown as AppendRoute<T, "GET", Path, Body>
+        this._typedRoutes = [...this._typedRoutes, { method: "GET", path, handler }]
         return this as unknown as Router<AppendRoute<T, "GET", Path, Body>>
     }
 
@@ -324,7 +324,7 @@ export class Router<T extends RouteCollection = []> {
             }
         }
         registerPost(this.routes, this.mergeHandlers, path, wrappedHandler, ...handlers)
-        this._typedRoutes = [...this._typedRoutes, { method: "POST", path, handler }] as unknown as AppendRoute<T, "POST", Path, Body>
+        this._typedRoutes = [...this._typedRoutes, { method: "POST", path, handler }]
         return this as unknown as Router<AppendRoute<T, "POST", Path, Body>>
     }
 
@@ -347,7 +347,7 @@ export class Router<T extends RouteCollection = []> {
             }
         }
         registerPut(this.routes, this.mergeHandlers, path, wrappedHandler, ...handlers)
-        this._typedRoutes = [...this._typedRoutes, { method: "PUT", path, handler }] as unknown as AppendRoute<T, "PUT", Path, Body>
+        this._typedRoutes = [...this._typedRoutes, { method: "PUT", path, handler }]
         return this as unknown as Router<AppendRoute<T, "PUT", Path, Body>>
     }
 
@@ -370,7 +370,7 @@ export class Router<T extends RouteCollection = []> {
             }
         }
         registerDelete(this.routes, this.mergeHandlers, path, wrappedHandler, ...handlers)
-        this._typedRoutes = [...this._typedRoutes, { method: "DELETE", path, handler }] as unknown as AppendRoute<T, "DELETE", Path, Body>
+        this._typedRoutes = [...this._typedRoutes, { method: "DELETE", path, handler }]
         return this as unknown as Router<AppendRoute<T, "DELETE", Path, Body>>
     }
 
@@ -393,7 +393,7 @@ export class Router<T extends RouteCollection = []> {
             }
         }
         registerPatch(this.routes, this.mergeHandlers, path, wrappedHandler, ...handlers)
-        this._typedRoutes = [...this._typedRoutes, { method: "PATCH", path, handler }] as unknown as AppendRoute<T, "PATCH", Path, Body>
+        this._typedRoutes = [...this._typedRoutes, { method: "PATCH", path, handler }]
         return this as unknown as Router<AppendRoute<T, "PATCH", Path, Body>>
     }
 
@@ -410,82 +410,49 @@ export class Router<T extends RouteCollection = []> {
         path: string,
         handler: RequestMiddleware,
         ...handlers: RequestMiddleware[]
-    ): Router {
+    ): Router<T> {
         registerTrace(this.routes, this.mergeHandlers, path, handler, ...handlers)
         return this
     }
 
-    /**
-     * Registers a route for the `HEAD` HTTP method.
-     * @param path The route path.
-     * @param handler The handler function for the route.
-     * @param handlers Additional middleware functions to apply to the route.
-     * @returns The router instance.
-     */
     head(
         path: string,
         handler: RequestMiddleware,
         ...handlers: RequestMiddleware[]
-    ): Router {
+    ): Router<T> {
         registerHead(this.routes, this.mergeHandlers, path, handler, ...handlers)
         return this
     }
 
-    /**
-     * Register a handler to run for CONNECT requests on the given path.
-     * @param path The path to run the handler on
-     * @param handler The handler to run
-     */
     connect(
         path: string,
         handler: RequestMiddleware,
         ...handlers: RequestMiddleware[]
-    ): Router {
+    ): Router<T> {
         registerConnect(this.routes, this.mergeHandlers, path, handler, ...handlers)
         return this
     }
 
-    /**
-     * Register a handler to run on OPTIONS requests.
-     * @param path The path to run the handler on (undefined = all)
-     * @param handler The handler(s) to run
-     * @returns The router
-     */
     options(
         path: string,
         handler: RequestMiddleware,
         ...handlers: RequestMiddleware[]
-    ): Router {
+    ): Router<T> {
         registerOptions(this.routes, this.mergeHandlers, path, handler, ...handlers)
         return this
     }
 
-    /**
-     * Upgrade a request to a websocket connection.
-     * @param path The path to use for the websocket connection.
-     * @returns The router, for chaining.
-     */
-    ws(path: string): Router {
+    ws(path: string): Router<T> {
         registerWs(this.routes, path)
         return this
     }
 
-    /**
-     * Set the WebSocket handlers for Bun.serve.
-     * @param handlers The WebSocket handlers.
-     * @returns The router, for chaining.
-     */
-    setWebSocketHandlers(handlers: Bun.WebSocketHandler<WebSocketData>): Router {
+    setWebSocketHandlers(handlers: Bun.WebSocketHandler<WebSocketData>): Router<T> {
         this.wsHandlers = handlers
         return this
     }
 
-    /**
-     * Register a global error handler for unhandled errors in route handlers.
-     * @param handler The error handler function
-     * @returns The router, for chaining
-     */
-    onError(handler: ErrorHandler): Router {
+    onError(handler: ErrorHandler): Router<T> {
         this.errorHandler = handler
         return this
     }
@@ -503,7 +470,7 @@ export class Router<T extends RouteCollection = []> {
         path: string,
         redirectTarget: string,
         perma: boolean = false,
-    ): Router {
+    ): Router<T> {
         registerRedirect(this.routes, method, path, redirectTarget, perma)
         return this
     }
@@ -513,7 +480,7 @@ export class Router<T extends RouteCollection = []> {
         targetDir: string,
         indexFile: string = "index.html",
         deepestLevel: number = 10,
-    ): Router {
+    ): Router<T> {
         registerStatic(this.routes, path, targetDir, indexFile, deepestLevel)
         return this
     }
@@ -522,7 +489,7 @@ export class Router<T extends RouteCollection = []> {
         method: "*" | HttpMethodString,
         path: string,
         autoResponseHeaders: boolean = false,
-    ): Router {
+    ): Router<T> {
         registerCookies(this.routes, method, path, autoResponseHeaders)
         return this
     }
@@ -531,7 +498,7 @@ export class Router<T extends RouteCollection = []> {
         method: "*" | HttpMethodString,
         path: string,
         options?: CorsOptions,
-    ): Router {
+    ): Router<T> {
         registerCors(this.routes, method, path, options)
         return this
     }
@@ -540,7 +507,7 @@ export class Router<T extends RouteCollection = []> {
         method: "*" | HttpMethodString,
         path: string,
         options?: BodyParserOptions,
-    ): Router {
+    ): Router<T> {
         registerBodyParser(this.routes, method, path, options)
         return this
     }
@@ -549,7 +516,7 @@ export class Router<T extends RouteCollection = []> {
         method: "*" | HttpMethodString,
         path: string,
         options: RateLimitOptions,
-    ): Router {
+    ): Router<T> {
         registerRateLimit(this.routes, method, path, options)
         return this
     }
@@ -558,7 +525,7 @@ export class Router<T extends RouteCollection = []> {
         method: "*" | HttpMethodString,
         path: string,
         options?: RequestIdOptions,
-    ): Router {
+    ): Router<T> {
         registerRequestId(this.routes, method, path, options)
         return this
     }
@@ -567,7 +534,7 @@ export class Router<T extends RouteCollection = []> {
         method: "*" | HttpMethodString,
         path: string,
         options: TimeoutOptions,
-    ): Router {
+    ): Router<T> {
         registerTimeout(this.routes, method, path, options)
         return this
     }
@@ -576,7 +543,7 @@ export class Router<T extends RouteCollection = []> {
         method: "*" | HttpMethodString,
         path: string,
         options?: FileUploadOptions,
-    ): Router {
+    ): Router<T> {
         registerFileUpload(this.routes, method, path, options)
         return this
     }
@@ -618,8 +585,8 @@ export class Router<T extends RouteCollection = []> {
      * @param callback A function that receives the router to register routes on
      * @returns The router, for chaining
      */
-    group(prefix: string, callback: (router: Router) => void): Router {
-        const subRouter = new Router()
+    group(prefix: string, callback: (router: Router<T>) => void): Router<T> {
+        const subRouter = new Router<T>()
         callback(subRouter)
 
         for (const route of subRouter.routes) {
@@ -636,14 +603,7 @@ export class Router<T extends RouteCollection = []> {
         return this
     }
 
-    /**
-     * Mount a sub-router at the given path prefix.
-     * All routes from the sub-router will be registered with the prefix prepended.
-     * @param prefix The prefix path to mount the sub-router at
-     * @param subRouter The sub-router to mount
-     * @returns The router, for chaining
-     */
-    mount(prefix: string, subRouter: Router): Router {
+    mount(prefix: string, subRouter: Router): Router<T> {
         for (const route of subRouter.routes) {
             const mergedSplitPath = this.mergeSplitPaths(
                 splitRoutePath(prefix),
