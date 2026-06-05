@@ -1,6 +1,6 @@
 {
   "name": "router-bun",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "A fast, Express-like router for Bun.serve with native Socket.IO support.",
   "type": "module",
   "main": "./dist/index.cjs",
