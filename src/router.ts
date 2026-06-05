@@ -8,7 +8,7 @@ import { isMergedRequestMiddleware } from "./middleware"
 // Import modularized components
 import { parseCookies, storeCookies } from "./router/cookies"
 import { dump as dumpRoutes, getRouteDefinitions as getDefs } from "./router/dump"
-import type { RouteDefinition, QueryParamInfo } from "./router/dump"
+import type { RouteDefinition, QueryParamInfo, DumpOptions } from "./router/dump"
 import {
     use as registerUse,
     get as registerGet,
@@ -69,11 +69,12 @@ export class Router {
      * Prints a table of all endpoints defined in this router.
      *
      * If a server is given as a parameter, a running message with the url of the server is printed too.
-     * @param server The server to print the url of
+     * @param optionsOrServer Dump options or first server
+     * @param servers Additional servers
      * @returns A string representing the table of endpoints
      */
-    dump(...servers: Server<WebSocketData>[]): string {
-        return dumpRoutes(this.routes, ...servers)
+    dump(optionsOrServer?: DumpOptions | Server<WebSocketData>, ...servers: Server<WebSocketData>[]): string {
+        return dumpRoutes(this.routes, optionsOrServer, ...servers)
     }
 
     /**

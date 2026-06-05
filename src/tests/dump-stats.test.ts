@@ -35,7 +35,7 @@ describe("dump response time tracking", () => {
     expect(stats.size).toBe(0);
   });
 
-  it("dump includes stats columns when stats exist", () => {
+  it("dump includes stats in handler string when stats exist", () => {
     clearRouteStats();
     trackRouteTime("GET", "/test", 15);
     trackRouteTime("GET", "/test", 25);
@@ -47,12 +47,12 @@ describe("dump response time tracking", () => {
     }];
     
     const result = dump(routes);
-    expect(result).toContain("Requests");
-    expect(result).toContain("Avg Time");
-    expect(result).toContain("2"); // request count
+    expect(result).toContain("req");
+    expect(result).toContain("ms");
+    expect(result).toContain("2");
   });
 
-  it("dump does not include stats columns when no stats exist", () => {
+  it("dump does not include stats when no stats exist", () => {
     clearRouteStats();
     
     const routes: EndpointRoute[] = [{
@@ -62,8 +62,8 @@ describe("dump response time tracking", () => {
     }];
     
     const result = dump(routes);
-    expect(result).not.toContain("Requests");
-    expect(result).not.toContain("Avg Time");
+    expect(result).not.toContain("req");
+    expect(result).not.toContain("ms");
   });
 
   it("dump shows 0 requests for routes without stats", () => {
@@ -76,9 +76,8 @@ describe("dump response time tracking", () => {
     }];
     
     const result = dump(routes);
-    // When no stats exist, the stats columns are not shown at all
-    expect(result).not.toContain("Requests");
-    expect(result).not.toContain("Avg Time");
+    expect(result).not.toContain("req");
+    expect(result).not.toContain("ms");
   });
 
   it("multiple routes with different stats", () => {
@@ -103,11 +102,11 @@ describe("dump response time tracking", () => {
     const result = dump(routes);
     expect(result).toContain("handlerA");
     expect(result).toContain("handlerB");
-    expect(result).toContain("2"); // /a request count
-    expect(result).toContain("1"); // /b request count
+    expect(result).toContain("2");
+    expect(result).toContain("1");
   });
 
-  it("dump includes separator line with stats", () => {
+  it("dump includes separator line", () => {
     clearRouteStats();
     trackRouteTime("GET", "/test", 10);
     

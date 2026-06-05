@@ -72,11 +72,14 @@ export interface RouteDefinition {
     queryParams?: QueryParamInfo[]
 }
 
-/**
- * Extracts path parameter info from a split path array.
- * Parses `:named`, `*` (wildcard), and `**` (double-wildcard) segments.
- * Named params at their original positions; wildcards get auto-named `_0`, `_1`, etc.
- */
+export interface DumpOptions {
+    format?: "table" | "compact" | "json"
+    customFormatter?: (
+        definitions: RouteDefinition[],
+        servers: Server<WebSocketData>[]
+    ) => string
+}
+
 export function extractPathParams(splitPath: string[] | undefined): RouteParamInfo[] {
     if (!splitPath) return []
     const params: RouteParamInfo[] = []
@@ -94,9 +97,6 @@ export function extractPathParams(splitPath: string[] | undefined): RouteParamIn
     return params
 }
 
-/**
- * Resolves a handler function name from a RequestMiddleware.
- */
 export function resolveHandlerName(handler: RequestMiddleware): string {
     if (isMergedRequestMiddleware(handler)) {
         return "[merged]"
@@ -114,24 +114,6 @@ export function resolveHandlerName(handler: RequestMiddleware): string {
     return "[anonym]"
 }
 
-/**
- * Returns structured route definitions suitable for Swagger/OpenAPI generation,
- * API documentation, or dynamic endpoint listings.
- *
- * Each definition includes the method, path pattern, extracted path parameters,
- * middleware chain information, and optional performance stats.
- *
- * @param routes The endpoint routes to extract definitions from
- * @returns An array of structured route definitions
- *
- * @example
- * ```ts
- * const defs = getRouteDefinitions(router.routes)
- * for (const def of defs) {
- *   // Build Swagger path item from def.method, def.path, def.pathParams
- * }
- * ```
- */
 export function getRouteDefinitions(
     routes: EndpointRoute[],
     routeMeta?: Map<string, { queryParams?: QueryParamInfo[] }>,
@@ -200,13 +182,6 @@ export function getRouteDefinitions(
     return definitions
 }
 
-/**
- * Creates a string tuple that contains the method, path and name of the middleware
- * @param route The route to generate the string for
- * @param handler The handler of the route
- * @param mergedToTop Whether the handler is merged to the top
- * @returns A string with 3 parts: method, path and name
- */
 export function getDefinitionString(
     route: EndpointRoute,
     handler: RequestMiddleware,
@@ -231,133 +206,107 @@ export function getDefinitionString(
     return parts
 }
 
-/**
- * Prints a table of all endpoints defined in the router.
- * 
- * If a server is given as a parameter, a running message with the url of the server is printed too.
- * @param routes The routes to dump
- * @param servers The server to print the url of
- * @returns A string representing the table of endpoints
- */
+function isServer(obj: unknown): obj is Server<WebSocketData> {
+    return typeof obj === "object" && obj !== null && "url" in obj
+}
+
+const METHOD_ORDER = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE"]
+
+function methodSortIndex(method: string): number {
+    const idx = METHOD_ORDER.indexOf(method)
+    return idx === -1 ? 99 : idx
+}
+
+function buildHandlerString(def: RouteDefinition, hasStats: boolean): string {
+    const chain = def.middlewareChain.map(m => m.name).join(" → ")
+    const countPrefix = def.middlewareChain.length > 1 ? `[${def.middlewareChain.length}] ` : ""
+    const statsStr = hasStats && def.stats
+        ? ` (${def.stats.requestCount} req, ${def.stats.avgTimeMs.toFixed(2)}ms)`
+        : ""
+    return countPrefix + chain + statsStr
+}
+
 export function dump(
     routes: EndpointRoute[],
+    optionsOrServer?: DumpOptions | Server<WebSocketData>,
     ...servers: Server<WebSocketData>[]
 ): string {
     if (routes.length == 0) {
         throw new Error("No endpoint routes defined")
     }
 
-    let unmergedParts: [string, string, string][] = []
-    let mergedParts: [string, string, string][] = []
-    for (const route of routes) {
-        mergedParts.push(
-            getDefinitionString(
-                route,
-                route.handler,
-                false
-            )
-        )
+    let options: DumpOptions = {}
+    let allServers: Server<WebSocketData>[] = []
 
-        unmergedParts.push(
-            ...unmergeRequestMiddleware(route.handler)
-                .map(
-                    (middleware, index) => getDefinitionString(
-                        route,
-                        middleware,
-                        index != 0,
-                    )
-                )
-        )
+    if (optionsOrServer !== undefined) {
+        if (isServer(optionsOrServer)) {
+            allServers = [optionsOrServer, ...servers]
+        } else {
+            options = optionsOrServer
+            allServers = servers
+        }
     }
 
-    const both = [
-        ...unmergedParts,
-        ...mergedParts
-    ]
-    const part1MinLen = both.sort(
-        (a, b) => b[0].length - a[0].length
-    )[0][0].length
-    const part2MinLen = both.sort(
-        (a, b) => b[1].length - a[1].length
-    )[0][1].length
-    const part3MinLen = both.sort(
-        (a, b) => b[2].length - a[2].length
-    )[0][2].length
+    const definitions = getRouteDefinitions(routes)
+
+    if (options.customFormatter) {
+        return options.customFormatter(definitions, allServers)
+    }
+
+    definitions.sort((a, b) => {
+        const pathCompare = a.path.localeCompare(b.path)
+        if (pathCompare !== 0) return pathCompare
+        return methodSortIndex(a.method) - methodSortIndex(b.method)
+    })
 
     const hasStats = routeStats.size > 0
-    let part4MinLen = 0
-    if (hasStats) {
-        for (const [, stats] of routeStats) {
-            const timeStr = stats.avgTimeMs.toFixed(2) + "ms"
-            if (timeStr.length > part4MinLen) {
-                part4MinLen = timeStr.length
-            }
-        }
-        part4MinLen = Math.max(part4MinLen, "Avg Time".length)
-    }
+    const withMiddlewareCount = definitions.filter(d => d.middlewareChain.length > 1).length
+    const totalRoutes = definitions.length
 
     const lines: string[] = []
 
-    if (servers && servers.length != 0) {
-        if (servers.length == 1) {
-            lines.push("Server is listening on " + servers[0].url)
+    if (allServers.length > 0) {
+        if (allServers.length == 1) {
+            lines.push("Server is listening on " + allServers[0].url)
         } else {
             lines.push("Server is listening on:")
-            lines.push(
-                ...servers.map(
-                    (server) => "- " + server.url
-                )
-            )
+            lines.push(...allServers.map(s => "- " + s.url))
         }
     }
 
-    const header = hasStats
-        ? `| ${"Method".padEnd(part1MinLen)} | ${"Path".padEnd(part2MinLen)} | ${"Handler".padEnd(part3MinLen)} | ${"Requests".padEnd(8)} | ${"Avg Time".padEnd(part4MinLen)} |`
-        : `| ${"Method".padEnd(part1MinLen)} | ${"Path".padEnd(part2MinLen)} | ${"Handler".padEnd(part3MinLen)} |`
-    const separator = hasStats
-        ? `| ${"-".repeat(part1MinLen)} | ${"-".repeat(part2MinLen)} | ${"-".repeat(part3MinLen)} | ${"-".repeat(8)} | ${"-".repeat(part4MinLen)} |`
-        : `| ${"-".repeat(part1MinLen)} | ${"-".repeat(part2MinLen)} | ${"-".repeat(part3MinLen)} |`
+    const middlewareInfo = withMiddlewareCount > 0 ? ` (${withMiddlewareCount} with middleware)` : ""
+    lines.push(`# ${totalRoutes} endpoint${totalRoutes !== 1 ? "s" : ""}${middlewareInfo}`)
 
-    lines.push(
-        "",
-        "# Defined endpoints:",
-        header,
-        separator,
-        ...unmergedParts.map(
-            ([part1, part2, part3]): string => {
-                if (hasStats) {
-                    const statsKey = `${part1}:${part2}`
-                    const stats = routeStats.get(statsKey)
-                    const reqCount = stats ? String(stats.requestCount).padEnd(8) : "0".padEnd(8)
-                    const avgTime = stats ? (stats.avgTimeMs.toFixed(2) + "ms").padEnd(part4MinLen) : "N/A".padEnd(part4MinLen)
-                    return `| ${part1.padEnd(part1MinLen)} | ${part2.padEnd(part2MinLen)} | ${part3.padEnd(part3MinLen)} | ${reqCount} | ${avgTime} |`
-                }
-                return `| ${part1.padEnd(part1MinLen)} | ${part2.padEnd(part2MinLen)} | ${part3.padEnd(part3MinLen)} |`
-            }
-        ),
-        "",
-    )
-
-    if (unmergedParts.length != mergedParts.length) {
-        lines.push(
-            "# Merged endpoints:",
-            header,
-            separator,
-            ...mergedParts.map(
-                ([part1, part2, part3]): string => {
-                    if (hasStats) {
-                        const statsKey = `${part1}:${part2}`
-                        const stats = routeStats.get(statsKey)
-                        const reqCount = stats ? String(stats.requestCount).padEnd(8) : "0".padEnd(8)
-                        const avgTime = stats ? (stats.avgTimeMs.toFixed(2) + "ms").padEnd(part4MinLen) : "N/A".padEnd(part4MinLen)
-                        return `| ${part1.padEnd(part1MinLen)} | ${part2.padEnd(part2MinLen)} | ${part3.padEnd(part3MinLen)} | ${reqCount} | ${avgTime} |`
-                    }
-                    return `| ${part1.padEnd(part1MinLen)} | ${part2.padEnd(part2MinLen)} | ${part3.padEnd(part3MinLen)} |`
-                }
-            ),
-            "",
-        )
+    if (options.format === "json") {
+        lines.push(JSON.stringify(definitions.map(d => (d as RouteDefinition & { toJSON(): Record<string, unknown> }).toJSON()), null, 2))
+        return lines.join("\n")
     }
+
+    if (options.format === "compact") {
+        const methodWidth = Math.max(6, ...definitions.map(d => d.method.length))
+        const pathWidth = Math.max(4, ...definitions.map(d => d.path.length))
+        for (const def of definitions) {
+            const handlerStr = buildHandlerString(def, hasStats)
+            lines.push(`${def.method.padEnd(methodWidth)} ${def.path.padEnd(pathWidth)} ${handlerStr}`)
+        }
+        return lines.join("\n")
+    }
+
+    const methodWidth = Math.max("Method".length, ...definitions.map(d => d.method.length))
+    const pathWidth = Math.max("Path".length, ...definitions.map(d => d.path.length))
+    const handlerWidth = Math.max("Handlers".length, ...definitions.map(d => buildHandlerString(d, hasStats).length))
+
+    const header = `| ${"Method".padEnd(methodWidth)} | ${"Path".padEnd(pathWidth)} | ${"Handlers".padEnd(handlerWidth)} |`
+    const separator = `| ${"-".repeat(methodWidth)} | ${"-".repeat(pathWidth)} | ${"-".repeat(handlerWidth)} |`
+
+    lines.push("", header, separator)
+
+    for (const def of definitions) {
+        const handlerStr = buildHandlerString(def, hasStats)
+        lines.push(`| ${def.method.padEnd(methodWidth)} | ${def.path.padEnd(pathWidth)} | ${handlerStr.padEnd(handlerWidth)} |`)
+    }
+
+    lines.push("")
 
     return lines.join("\n")
 }

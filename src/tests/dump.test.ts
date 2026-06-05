@@ -87,7 +87,7 @@ describe("dump.dump", () => {
       handler: function testHandler() { }
     }];
     const result = dump(routes);
-    expect(result).toContain("Defined endpoints:");
+    expect(result).toContain("# 1 endpoint");
     expect(result).toContain("GET");
     expect(result).toContain("/test");
     expect(result).toContain("testHandler");
@@ -137,7 +137,7 @@ describe("dump.dump", () => {
     expect(result).toContain("- http://localhost:3001");
   });
 
-  it("prints Merged endpoints section for merged handlers", () => {
+  it("shows inline middleware chain for merged handlers", () => {
     const { mergeRequestMiddlewares } = require("../middleware");
     const routes: EndpointRoute[] = [{
       splitPath: splitRoutePath("/test"),
@@ -145,6 +145,50 @@ describe("dump.dump", () => {
       handler: mergeRequestMiddlewares(() => { }, () => { })
     }];
     const result = dump(routes);
-    expect(result).toContain("Merged endpoints:");
+    expect(result).toContain("→");
+    expect(result).toContain("[2]");
+    expect(result).toContain("1 with middleware");
+  });
+
+  it("accepts DumpOptions as first argument", () => {
+    const routes: EndpointRoute[] = [{
+      splitPath: splitRoutePath("/test"),
+      method: parseHttpMethods("GET"),
+      handler: function testHandler() { }
+    }];
+    const result = dump(routes, { format: "compact" });
+    expect(result).toContain("GET");
+    expect(result).toContain("/test");
+    expect(result).toContain("testHandler");
+    expect(result).not.toContain("|");
+  });
+
+  it("accepts customFormatter option", () => {
+    const routes: EndpointRoute[] = [{
+      splitPath: splitRoutePath("/test"),
+      method: parseHttpMethods("GET"),
+      handler: function testHandler() { }
+    }];
+    const result = dump(routes, {
+      customFormatter: (defs) => `Custom: ${defs.length} route(s)`
+    });
+    expect(result).toBe("Custom: 1 route(s)");
+  });
+
+  it("json format outputs valid JSON", () => {
+    const routes: EndpointRoute[] = [{
+      splitPath: splitRoutePath("/test"),
+      method: parseHttpMethods("GET"),
+      handler: function testHandler() { }
+    }];
+    const result = dump(routes, { format: "json" });
+    const lines = result.split("\n");
+    const jsonStart = lines.findIndex(l => l.startsWith("["));
+    expect(jsonStart).toBeGreaterThan(-1);
+    const jsonStr = lines.slice(jsonStart).join("\n");
+    const parsed = JSON.parse(jsonStr);
+    expect(Array.isArray(parsed)).toBe(true);
+    expect(parsed[0].method).toBe("GET");
+    expect(parsed[0].path).toBe("/test");
   });
 });
