@@ -1,6 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 import { cors } from "../router/cors";
 import { HttpMethod } from "../method";
+import { HTTP_HEADERS } from "../headers";
 import type { EndpointRoute } from "../types";
 import { createMockReq, createMockRes, calls } from "./utils";
 import { Context } from "../context";
@@ -23,7 +24,7 @@ describe("cors middleware", () => {
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Allow-Origin",
+      HTTP_HEADERS.ACCESS_CONTROL_ALLOW_ORIGIN,
       "*"
     );
   });
@@ -37,7 +38,7 @@ describe("cors middleware", () => {
     routes[0].handler(ctx);
     // When no origin header, getAllowOrigin returns undefined, so no header is set
     expect(res.setHeader).not.toHaveBeenCalledWith(
-      "Access-Control-Allow-Origin",
+      HTTP_HEADERS.ACCESS_CONTROL_ALLOW_ORIGIN,
       expect.anything()
     );
   });
@@ -52,7 +53,7 @@ describe("cors middleware", () => {
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Allow-Origin",
+      HTTP_HEADERS.ACCESS_CONTROL_ALLOW_ORIGIN,
       "http://example.com"
     );
   });
@@ -67,7 +68,7 @@ describe("cors middleware", () => {
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
     expect(res.setHeader).not.toHaveBeenCalledWith(
-      "Access-Control-Allow-Origin",
+      HTTP_HEADERS.ACCESS_CONTROL_ALLOW_ORIGIN,
       expect.anything()
     );
   });
@@ -82,7 +83,7 @@ describe("cors middleware", () => {
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Allow-Origin",
+      HTTP_HEADERS.ACCESS_CONTROL_ALLOW_ORIGIN,
       "http://b.com"
     );
   });
@@ -97,7 +98,7 @@ describe("cors middleware", () => {
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Allow-Credentials",
+      HTTP_HEADERS.ACCESS_CONTROL_ALLOW_CREDENTIALS,
       "true"
     );
   });
@@ -112,7 +113,7 @@ describe("cors middleware", () => {
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Expose-Headers",
+      HTTP_HEADERS.ACCESS_CONTROL_EXPOSE_HEADERS,
       "X-Custom, X-Other"
     );
   });
@@ -134,10 +135,10 @@ describe("cors middleware", () => {
     (req).httpMethod = HttpMethod.OPTIONS;
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
-    expect(calls(res.setHeader)).toContainEqual(["Access-Control-Allow-Origin", "*"]);
-    expect(calls(res.setHeader)).toContainEqual(["Access-Control-Allow-Methods", "GET, POST"]);
-    expect(calls(res.setHeader)).toContainEqual(["Access-Control-Allow-Headers", "Content-Type, Authorization"]);
-    expect(calls(res.setHeader)).toContainEqual(["Access-Control-Max-Age", "3600"]);
+    expect(calls(res.setHeader)).toContainEqual([HTTP_HEADERS.ACCESS_CONTROL_ALLOW_ORIGIN, "*"]);
+    expect(calls(res.setHeader)).toContainEqual([HTTP_HEADERS.ACCESS_CONTROL_ALLOW_METHODS, "GET, POST"]);
+    expect(calls(res.setHeader)).toContainEqual([HTTP_HEADERS.ACCESS_CONTROL_ALLOW_HEADERS, "Content-Type, Authorization"]);
+    expect(calls(res.setHeader)).toContainEqual([HTTP_HEADERS.ACCESS_CONTROL_MAX_AGE, "3600"]);
   });
 
   it("preflight reads request headers when allowedHeaders not set", () => {
@@ -156,7 +157,7 @@ describe("cors middleware", () => {
     (req).httpMethod = HttpMethod.OPTIONS;
     const localCtx = new Context(req, res);
     routes[0].handler(localCtx);
-    expect(calls(res.setHeader)).toContainEqual(["Access-Control-Allow-Headers", "X-Custom-Header"]);
+    expect(calls(res.setHeader)).toContainEqual([HTTP_HEADERS.ACCESS_CONTROL_ALLOW_HEADERS, "X-Custom-Header"]);
   });
 
 
@@ -190,7 +191,7 @@ describe("cors middleware", () => {
     (req).httpMethod = HttpMethod.OPTIONS;
     const localCtx = new Context(req, res);
     routes[0].handler(localCtx);
-    expect(calls(res.setHeader)).toContainEqual(["Access-Control-Allow-Methods", "GET, HEAD, PUT, PATCH, POST, DELETE"]);
+    expect(calls(res.setHeader)).toContainEqual([HTTP_HEADERS.ACCESS_CONTROL_ALLOW_METHODS, "GET, HEAD, PUT, PATCH, POST, DELETE"]);
   });
 
 
@@ -206,7 +207,7 @@ describe("cors middleware", () => {
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Allow-Origin",
+      HTTP_HEADERS.ACCESS_CONTROL_ALLOW_ORIGIN,
       "http://sub.example.com"
     );
   });
@@ -223,7 +224,7 @@ describe("cors middleware", () => {
     const ctx = new Context(req, res);
     routes[0].handler(ctx);
     expect(res.setHeader).not.toHaveBeenCalledWith(
-      "Access-Control-Allow-Origin",
+      HTTP_HEADERS.ACCESS_CONTROL_ALLOW_ORIGIN,
       expect.anything()
     );
   });

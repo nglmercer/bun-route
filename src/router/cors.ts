@@ -1,6 +1,7 @@
 import { splitRoutePath } from "../path"
 import { parseHttpMethods, HttpMethodString } from "../method"
 import { HTTP_STATUS } from "../responseBuilder"
+import { HTTP_HEADERS } from "../headers"
 import type { EndpointRoute, RequestMiddleware } from "../types"
 
 export interface CorsOptions {
@@ -60,33 +61,33 @@ export function cors(
         const allowOrigin = getAllowOrigin(reqOrigin, options)
 
         if (allowOrigin) {
-            res.setHeader("Access-Control-Allow-Origin", allowOrigin)
+            res.setHeader(HTTP_HEADERS.ACCESS_CONTROL_ALLOW_ORIGIN, allowOrigin)
         }
 
         if (credentials) {
-            res.setHeader("Access-Control-Allow-Credentials", "true")
+            res.setHeader(HTTP_HEADERS.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true")
         }
 
         if (exposedHeaders && exposedHeaders.length > 0) {
-            res.setHeader("Access-Control-Expose-Headers", exposedHeaders.join(", "))
+            res.setHeader(HTTP_HEADERS.ACCESS_CONTROL_EXPOSE_HEADERS, exposedHeaders.join(", "))
         }
 
         // Handle preflight OPTIONS request
         if (req.httpMethod === parseHttpMethods("OPTIONS")) {
             res.setHeader(
-                "Access-Control-Allow-Methods",
+                HTTP_HEADERS.ACCESS_CONTROL_ALLOW_METHODS,
                 methods.join(", ")
             )
 
             const reqAllowedHeaders = req.headers.get("access-control-request-headers")
             if (allowedHeaders && allowedHeaders.length > 0) {
-                res.setHeader("Access-Control-Allow-Headers", allowedHeaders.join(", "))
+                res.setHeader(HTTP_HEADERS.ACCESS_CONTROL_ALLOW_HEADERS, allowedHeaders.join(", "))
             } else if (reqAllowedHeaders) {
-                res.setHeader("Access-Control-Allow-Headers", reqAllowedHeaders)
+                res.setHeader(HTTP_HEADERS.ACCESS_CONTROL_ALLOW_HEADERS, reqAllowedHeaders)
             }
 
             if (maxAge) {
-                res.setHeader("Access-Control-Max-Age", String(maxAge))
+                res.setHeader(HTTP_HEADERS.ACCESS_CONTROL_MAX_AGE, String(maxAge))
             }
 
             if (!preflightContinue) {

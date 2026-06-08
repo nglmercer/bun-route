@@ -1,4 +1,5 @@
 import type { ResponseBuilder } from "../responseBuilder"
+import { HTTP_HEADERS, CONTENT_TYPES, CACHE_CONTROL } from "../headers"
 
 export interface SSEMessage {
     event?: string
@@ -25,10 +26,10 @@ export function createSSEStream(res: ResponseBuilder): SSEStream {
     let closed = false
     let sseController: ReadableStreamDefaultController<Uint8Array> | undefined
 
-    res.setHeader("Content-Type", "text/event-stream")
-    res.setHeader("Cache-Control", "no-cache")
-    res.setHeader("Connection", "keep-alive")
-    res.setHeader("X-Accel-Buffering", "no")
+    res.setHeader(HTTP_HEADERS.CONTENT_TYPE, CONTENT_TYPES.TEXT_EVENT_STREAM)
+    res.setHeader(HTTP_HEADERS.CACHE_CONTROL, CACHE_CONTROL.NO_CACHE)
+    res.setHeader(HTTP_HEADERS.CONNECTION, "keep-alive")
+    res.setHeader(HTTP_HEADERS.X_ACCEL_BUFFERING, "no")
 
     const encoder = new TextEncoder()
     const stream = new ReadableStream({

@@ -1,9 +1,35 @@
-import { Router } from "../src/index";
+import {
+  Router,
+  ResponseBuilder,
+  HTTP_HEADERS,
+  CONTENT_TYPES,
+  CACHE_CONTROL,
+  SECURITY_HEADERS,
+} from "../src/index";
 
 const router = new Router();
 
-const UPSTREAM_MASTER_URL = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
+const UPSTREAM_MASTER_URL =
+  process.env.HLS_UPSTREAM || "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 const PROXY_BASE = "/hls/proxy";
+const FETCH_TIMEOUT_MS = 10_000;
+
+const ALLOWED_HOSTS = new Set([
+  "test-streams.mux.dev",
+  "commondatastorage.googleapis.com",
+  "devstreaming-cdn.apple.com",
+  "streaming-vod.akamaized.net",
+]);
+
+const isAllowedUrl = (urlString: string): boolean => {
+  try {
+    const parsed = new URL(urlString);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
+    return ALLOWED_HOSTS.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
 
 const resolveUrl = (relative: string, baseUrl: string): string => {
   const base =
@@ -12,12 +38,16 @@ const resolveUrl = (relative: string, baseUrl: string): string => {
   return new URL(relative, base).toString();
 };
 
-const rewriteMediaPlaylist = (manifest: string, baseUrl: string): string => {
-  const lines = manifest.split("\n");
-  const base =
-    new URL(baseUrl).origin +
-    new URL(baseUrl).pathname.replace(/\/[^/]*$/, "/");
-  return lines
+type RewriteMode = "master" | "media";
+
+const rewriteManifest = (
+  manifest: string,
+  baseUrl: string,
+  mode: RewriteMode,
+): string => {
+  const proxyTarget = mode === "master" ? "manifest" : "segment";
+  return manifest
+    .split("\n")
     .map((line) => {
       if (line.startsWith("#")) return line;
       const trimmed = line.trim();
@@ -28,110 +58,132 @@ const rewriteMediaPlaylist = (manifest: string, baseUrl: string): string => {
       } else {
         absoluteUrl = resolveUrl(trimmed, baseUrl);
       }
-      return `${PROXY_BASE}/segment?url=${encodeURIComponent(absoluteUrl)}`;
+      return `${PROXY_BASE}/${proxyTarget}?url=${encodeURIComponent(absoluteUrl)}`;
     })
     .join("\n");
 };
 
+const withTimeout = (signal?: AbortSignal): { controller: AbortController; timeout: ReturnType<typeof setTimeout> } => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  if (signal) {
+    signal.addEventListener("abort", () => controller.abort());
+  }
+  return { controller, timeout };
+};
+
+const PASSTHROUGH_HEADERS = [
+  HTTP_HEADERS.CONTENT_TYPE,
+  HTTP_HEADERS.CONTENT_LENGTH,
+  HTTP_HEADERS.ACCEPT_RANGES,
+  HTTP_HEADERS.CONTENT_RANGE,
+];
+
+const setCorsAndSecurity = (res: ResponseBuilder) => {
+  res.cors("*").setHeader(HTTP_HEADERS.X_CONTENT_TYPE_OPTIONS, SECURITY_HEADERS.NOSNIFF);
+};
+
+const log = (level: "info" | "warn" | "error", msg: string) => {
+  const ts = new Date().toISOString();
+  console[level](`[${ts}] [HLS] ${msg}`);
+};
+
 router.get(`${PROXY_BASE}/manifest`, async ({ req, res }) => {
   const url = new URL(req.url).searchParams.get("url");
-  if (!url) return res.status(400).sendText("Missing url parameter");
+  if (!url || !isAllowedUrl(url)) {
+    return res.status(400).sendText("Missing or disallowed url parameter");
+  }
+
+  log("info", `Manifest proxy: ${url}`);
+  const { controller, timeout } = withTimeout(req.signal);
   try {
     const response = await fetch(url, {
+      signal: controller.signal,
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; HLS-Proxy/1.0)",
-        Accept: "*/*",
+        [HTTP_HEADERS.USER_AGENT]: "Mozilla/5.0 (compatible; HLS-Proxy/1.0)",
+        [HTTP_HEADERS.ACCEPT]: "*/*",
       },
     });
-    if (!response.ok) throw new Error(`Upstream error: ${response.status}`);
+    if (!response.ok) throw new Error(`Upstream returned ${response.status}`);
     const manifest = await response.text();
-    const rewritten = rewriteMediaPlaylist(manifest, url);
-    res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cache-Control", "no-cache");
+    const rewritten = rewriteManifest(manifest, url, "media");
+    setCorsAndSecurity(res);
+    res.contentType(CONTENT_TYPES.APPLICATION_VND_APPLE_MPEGURL).cache(CACHE_CONTROL.NO_CACHE);
     res.send(rewritten);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    res.status(502).sendText(`Proxy error: ${message}`);
+    log("error", `Manifest proxy failed for ${url}: ${message}`);
+    res.status(502).sendText("Proxy error: upstream request failed");
+  } finally {
+    clearTimeout(timeout);
   }
 });
 
 router.get(`${PROXY_BASE}/segment`, async ({ req, res }) => {
   const url = new URL(req.url).searchParams.get("url");
-  if (!url) return res.status(400).sendText("Missing url parameter");
+  if (!url || !isAllowedUrl(url)) {
+    return res.status(400).sendText("Missing or disallowed url parameter");
+  }
+
+  log("info", `Segment proxy: ${url}`);
+  const { controller, timeout } = withTimeout(req.signal);
   try {
     const response = await fetch(url, {
+      signal: controller.signal,
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; HLS-Proxy/1.0)",
-        Accept: "*/*",
-        Range: req.headers.get("Range") || "",
+        [HTTP_HEADERS.USER_AGENT]: "Mozilla/5.0 (compatible; HLS-Proxy/1.0)",
+        [HTTP_HEADERS.ACCEPT]: "*/*",
+        [HTTP_HEADERS.RANGE]: req.headers.get(HTTP_HEADERS.RANGE) || "",
       },
     });
-    if (!response.ok && response.status !== 206)
-      throw new Error(`Upstream error: ${response.status}`);
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-    if (response.headers.get("Content-Type")) {
-      res.setHeader("Content-Type", response.headers.get("Content-Type")!);
+    if (!response.ok && response.status !== 206) {
+      throw new Error(`Upstream returned ${response.status}`);
     }
-    if (response.headers.get("Content-Length")) {
-      res.setHeader("Content-Length", response.headers.get("Content-Length")!);
-    }
-    if (response.headers.get("Accept-Ranges")) {
-      res.setHeader("Accept-Ranges", response.headers.get("Accept-Ranges")!);
-    }
-    if (response.headers.get("Content-Range")) {
-      res.setHeader("Content-Range", response.headers.get("Content-Range")!);
+    setCorsAndSecurity(res);
+    res.cache("public, max-age=600");
+    for (const h of PASSTHROUGH_HEADERS) {
+      const v = response.headers.get(h);
+      if (v) res.setHeader(h, v);
     }
     res.status(response.status);
     res.send(response.body);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    res.status(502).sendText(`Proxy error: ${message}`);
+    log("error", `Segment proxy failed for ${url}: ${message}`);
+    res.status(502).sendText("Proxy error: upstream request failed");
+  } finally {
+    clearTimeout(timeout);
   }
 });
 
 router.get("/hls/master.m3u8", async ({ req, res }) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Content-Type", "application/vnd.apple.mpegurl");
+  setCorsAndSecurity(res);
+  res.contentType(CONTENT_TYPES.APPLICATION_VND_APPLE_MPEGURL);
+
+  log("info", `Master manifest: ${UPSTREAM_MASTER_URL}`);
+  const { controller, timeout } = withTimeout(req.signal);
   try {
     const response = await fetch(UPSTREAM_MASTER_URL, {
+      signal: controller.signal,
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; HLS-Proxy/1.0)",
-        Accept: "*/*",
+        [HTTP_HEADERS.USER_AGENT]: "Mozilla/5.0 (compatible; HLS-Proxy/1.0)",
+        [HTTP_HEADERS.ACCEPT]: "*/*",
       },
     });
-    if (!response.ok) throw new Error(`Upstream error: ${response.status}`);
+    if (!response.ok) throw new Error(`Upstream returned ${response.status}`);
     const manifest = await response.text();
-    const lines = manifest.split("\n");
-    const base =
-      new URL(UPSTREAM_MASTER_URL).origin +
-      new URL(UPSTREAM_MASTER_URL).pathname.replace(/\/[^/]*$/, "/");
-    const rewritten = lines
-      .map((line) => {
-        if (line.startsWith("#")) return line;
-        const trimmed = line.trim();
-        if (!trimmed) return line;
-        let absoluteUrl: string;
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-          absoluteUrl = trimmed;
-        } else {
-          absoluteUrl = resolveUrl(trimmed, UPSTREAM_MASTER_URL);
-        }
-        return `${PROXY_BASE}/manifest?url=${encodeURIComponent(absoluteUrl)}`;
-      })
-      .join("\n");
+    const rewritten = rewriteManifest(manifest, UPSTREAM_MASTER_URL, "master");
     res.send(rewritten);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    res.status(502).sendText(`Proxy error: ${message}`);
+    log("error", `Master manifest failed: ${message}`);
+    res.status(502).sendText("Proxy error: upstream request failed");
+  } finally {
+    clearTimeout(timeout);
   }
 });
 
-router.get("/hls/test.html", ({ req, res }) => {
-  res.setHeader("Content-Type", "text/html");
-  res.send(`
-<!DOCTYPE html>
+const TEST_HTML = `<!DOCTYPE html>
 <html>
 <head>
     <title>HLS Test Player</title>
@@ -212,8 +264,10 @@ router.get("/hls/test.html", ({ req, res }) => {
         }
     </script>
 </body>
-</html>
-`);
+</html>`;
+
+router.get("/hls/test.html", ({ res }) => {
+  res.contentType(CONTENT_TYPES.TEXT_HTML).send(TEST_HTML);
 });
 
 export const server = Bun.serve({

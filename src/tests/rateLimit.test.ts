@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import { rateLimit } from "../router/rateLimit";
+import { HTTP_HEADERS } from "../headers";
 import type { EndpointRoute } from "../types";
 import { createMockReq, createMockRes } from "./utils";
 import { Context } from "../context";
@@ -34,10 +35,10 @@ describe("rateLimit middleware", () => {
     });
     const ctx = new Context(req, res)
     routes[0].handler(ctx);
-    expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Limit", "10");
-    expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Remaining", "9");
+    expect(res.setHeader).toHaveBeenCalledWith(HTTP_HEADERS.X_RATELIMIT_LIMIT, "10");
+    expect(res.setHeader).toHaveBeenCalledWith(HTTP_HEADERS.X_RATELIMIT_REMAINING, "9");
     expect(res.setHeader).toHaveBeenCalledWith(
-      "X-RateLimit-Reset",
+      HTTP_HEADERS.X_RATELIMIT_RESET,
       expect.any(String)
     );
   });
@@ -79,7 +80,7 @@ describe("rateLimit middleware", () => {
     });
     const ctx = new Context(req, res)
     routes[0].handler(ctx);
-    expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Limit", "1");
+    expect(res.setHeader).toHaveBeenCalledWith(HTTP_HEADERS.X_RATELIMIT_LIMIT, "1");
   });
 
   it("custom key generator works", () => {
@@ -95,7 +96,7 @@ describe("rateLimit middleware", () => {
     });
     const ctx = new Context(req, res)
     routes[0].handler(ctx);
-    expect(res.setHeader).toHaveBeenCalledWith("X-RateLimit-Limit", "1");
+    expect(res.setHeader).toHaveBeenCalledWith(HTTP_HEADERS.X_RATELIMIT_LIMIT, "1");
   });
 
   it("different keys have separate limits", () => {
@@ -134,7 +135,7 @@ describe("rateLimit middleware", () => {
     const ctx = new Context(req, res)
     routes[0].handler(ctx);
     expect(res.setHeader).not.toHaveBeenCalledWith(
-      "X-RateLimit-Limit",
+      HTTP_HEADERS.X_RATELIMIT_LIMIT,
       expect.anything()
     );
   });
@@ -157,7 +158,7 @@ describe("rateLimit middleware", () => {
     res2.send = mock(function () { res2.submit = true; });
     const ctx2 = new Context(req, res2)
     routes[0].handler(ctx2);
-    expect(res2.setHeader).toHaveBeenCalledWith("Retry-After", expect.any(String));
+    expect(res2.setHeader).toHaveBeenCalledWith(HTTP_HEADERS.RETRY_AFTER, expect.any(String));
   });
 
   it("custom message is sent on block", () => {

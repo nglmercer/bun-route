@@ -1,5 +1,12 @@
 import type { BodyInit } from "undici-types"
 import type { Awaitable, CookieOptions } from "./types"
+import {
+    HTTP_HEADERS as _HTTP_HEADERS,
+    type HeaderName,
+    type ContentType,
+    type CacheControlValue,
+    CONTENT_TYPES,
+} from "./headers"
 
 type BunBodyInit = BodyInit | import("bun").BunFile
 
@@ -16,14 +23,7 @@ export const HTTP_STATUS = {
     INTERNAL_SERVER_ERROR: 500,
 } as const
 
-export const HTTP_HEADERS = {
-    CONTENT_TYPE: "content-type",
-    LOCATION: "location",
-    WWW_AUTHENTICATE: "WWW-Authenticate",
-    SET_COOKIE: "Set-Cookie",
-    AUTHORIZATION: "authorization",
-    COOKIE: "cookie",
-} as const
+export { _HTTP_HEADERS as HTTP_HEADERS }
 
 export const RESPONSE_DEFAULTS = {
     REALM: "User Visible Realm",
@@ -96,7 +96,7 @@ export class ResponseBuilder {
     sendFile(file: import("bun").BunFile, code?: number): void {
         this._resetForSend()
         this.bodyInit = file
-        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, file.type)
+        this.setHeader(_HTTP_HEADERS.CONTENT_TYPE, file.type)
         if (code) this.statusCode = code
         this.responded = true
         this.submit = true
@@ -216,7 +216,7 @@ export class ResponseBuilder {
      * @returns The response builder instance
      */
     setHeader(
-        name: string,
+        name: HeaderName,
         value: string,
         overwrite: boolean = true,
     ): ResponseBuilder {
@@ -226,6 +226,55 @@ export class ResponseBuilder {
 
         this.headers.push([name, value])
 
+        return this
+    }
+
+    /**
+     * Sets the Content-Type header.
+     * @param value The content type value
+     * @returns The response builder instance
+     */
+    contentType(value: ContentType): ResponseBuilder {
+        return this.setHeader(_HTTP_HEADERS.CONTENT_TYPE, value)
+    }
+
+    /**
+     * Sets the Cache-Control header.
+     * @param value The cache control value
+     * @returns The response builder instance
+     */
+    cache(value: CacheControlValue): ResponseBuilder {
+        return this.setHeader(_HTTP_HEADERS.CACHE_CONTROL, value)
+    }
+
+    /**
+     * Sets CORS headers.
+     * @param origin The allowed origin (default: "*")
+     * @param options Additional CORS options
+     * @returns The response builder instance
+     */
+    cors(
+        origin: string = "*",
+        options?: {
+            credentials?: boolean
+            methods?: string[]
+            allowedHeaders?: string[]
+            maxAge?: number
+        },
+    ): ResponseBuilder {
+        this.setHeader(_HTTP_HEADERS.ACCESS_CONTROL_ALLOW_ORIGIN, origin)
+        if (options?.credentials) {
+            this.setHeader(_HTTP_HEADERS.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true")
+        }
+        if (options?.methods) {
+            this.setHeader(_HTTP_HEADERS.ACCESS_CONTROL_ALLOW_METHODS, options.methods.join(", "))
+        }
+        if (options?.allowedHeaders) {
+            this.setHeader(_HTTP_HEADERS.ACCESS_CONTROL_ALLOW_HEADERS, options.allowedHeaders.join(", "))
+        }
+        if (options?.maxAge !== undefined) {
+            this.setHeader(_HTTP_HEADERS.ACCESS_CONTROL_MAX_AGE, String(options.maxAge))
+        }
         return this
     }
 
@@ -259,7 +308,7 @@ export class ResponseBuilder {
             cookieParts.push(`SameSite=${options.SameSite}`)
         }
 
-        this.setHeader(HTTP_HEADERS.SET_COOKIE, cookieParts.join('; '), false)
+        this.setHeader(_HTTP_HEADERS.SET_COOKIE, cookieParts.join('; '), false)
 
         return this
     }
@@ -270,7 +319,7 @@ export class ResponseBuilder {
      * @returns The response builder instance
      */
     unsetCookie(name: string): ResponseBuilder {
-        this.setHeader(HTTP_HEADERS.SET_COOKIE, name + "=; Expires=Thu, 01 Jan 1970 00:00:00 GMT", false)
+        this.setHeader(_HTTP_HEADERS.SET_COOKIE, name + "=; Expires=Thu, 01 Jan 1970 00:00:00 GMT", false)
         return this
     }
 
@@ -312,7 +361,7 @@ export class ResponseBuilder {
         this._resetForSend()
         this.statusCode = savedStatusCode
         this.bodyInit = JSON.stringify(data)
-        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'application/json')
+        this.setHeader(_HTTP_HEADERS.CONTENT_TYPE, CONTENT_TYPES.APPLICATION_JSON)
         if (code) {
             this.statusCode = code
         }
@@ -334,7 +383,7 @@ export class ResponseBuilder {
     sendText(data: string, code?: number): void {
         this._resetForSend()
         this.bodyInit = data
-        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'text/plain; charset=UTF-8')
+        this.setHeader(_HTTP_HEADERS.CONTENT_TYPE, CONTENT_TYPES.TEXT_PLAIN)
         if (code) this.statusCode = code
         this.responded = true
         this.submit = true
@@ -354,7 +403,7 @@ export class ResponseBuilder {
     sendHtml(data: string, code?: number): void {
         this._resetForSend()
         this.bodyInit = data
-        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'text/html; charset=UTF-8')
+        this.setHeader(_HTTP_HEADERS.CONTENT_TYPE, CONTENT_TYPES.TEXT_HTML)
         if (code) this.statusCode = code
         this.responded = true
         this.submit = true
@@ -374,7 +423,7 @@ export class ResponseBuilder {
     sendError(message: string, code: number = HTTP_STATUS.INTERNAL_SERVER_ERROR): void {
         this._resetForSend()
         this.bodyInit = JSON.stringify({ error: message, status: code })
-        this.setHeader(HTTP_HEADERS.CONTENT_TYPE, 'application/json')
+        this.setHeader(_HTTP_HEADERS.CONTENT_TYPE, CONTENT_TYPES.APPLICATION_JSON)
         this.statusCode = code
         this.responded = true
         this.submit = true
@@ -394,7 +443,7 @@ export class ResponseBuilder {
     sendRedirect(url: string, perma: boolean = false): void {
         this._resetForSend()
         this.statusCode = perma ? HTTP_STATUS.PERMANENT_REDIRECT : HTTP_STATUS.TEMPORARY_REDIRECT
-        this.headers.push([HTTP_HEADERS.LOCATION, url])
+        this.headers.push([_HTTP_HEADERS.LOCATION, url])
         this.responded = true
         this.submit = true
     }
@@ -408,7 +457,7 @@ export class ResponseBuilder {
     sendRedirectCustom(url: string, status: number): void {
         this._resetForSend()
         this.statusCode = status
-        this.headers.push([HTTP_HEADERS.LOCATION, url])
+        this.headers.push([_HTTP_HEADERS.LOCATION, url])
         this.responded = true
         this.submit = true
     }

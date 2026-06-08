@@ -4,6 +4,7 @@ import { splitRoutePath } from "../path"
 import { parseHttpMethods, HttpMethodString } from "../method"
 import { PATH_CHARS } from "../path"
 import { HTTP_STATUS } from "../responseBuilder"
+import { HTTP_HEADERS, CONTENT_TYPES, CACHE_CONTROL } from "../headers"
 import type { EndpointRoute, RequestMiddleware, WebSocketData } from "../types"
 
 function generateETag(buffer: ArrayBuffer): string {
@@ -143,9 +144,9 @@ export function staticFiles(
                             return
                         }
 
-                        res.setHeader("ETag", etag)
-                        res.setHeader("Cache-Control", "public, max-age=0")
-                        res.setHeader("Content-Type", file.type || "application/octet-stream")
+                        res.setHeader(HTTP_HEADERS.ETAG, etag)
+                        res.setHeader(HTTP_HEADERS.CACHE_CONTROL, CACHE_CONTROL.PUBLIC_MAX_AGE_0)
+                        res.setHeader(HTTP_HEADERS.CONTENT_TYPE, file.type || CONTENT_TYPES.APPLICATION_OCTET_STREAM)
                         res.send(buffer)
                     } else {
                         res.status(HTTP_STATUS.NOT_FOUND)

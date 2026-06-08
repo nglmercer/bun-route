@@ -1,6 +1,7 @@
 import { splitRoutePath } from "../path"
 import { parseHttpMethods, HttpMethodString } from "../method"
 import { HTTP_STATUS } from "../responseBuilder"
+import { HTTP_HEADERS } from "../headers"
 import type { EndpointRoute, Request, RequestMiddleware } from "../types"
 
 export interface RateLimitOptions {
@@ -80,14 +81,14 @@ export function rateLimit(
         entry.count++
 
         if (headers) {
-            res.setHeader("X-RateLimit-Limit", String(max))
-            res.setHeader("X-RateLimit-Remaining", String(Math.max(0, max - entry.count)))
-            res.setHeader("X-RateLimit-Reset", String(Math.ceil(entry.resetAt / 1000)))
+            res.setHeader(HTTP_HEADERS.X_RATELIMIT_LIMIT, String(max))
+            res.setHeader(HTTP_HEADERS.X_RATELIMIT_REMAINING, String(Math.max(0, max - entry.count)))
+            res.setHeader(HTTP_HEADERS.X_RATELIMIT_RESET, String(Math.ceil(entry.resetAt / 1000)))
         }
 
         if (entry.count > max) {
             if (headers) {
-                res.setHeader("Retry-After", String(Math.ceil((entry.resetAt - now) / 1000)))
+                res.setHeader(HTTP_HEADERS.RETRY_AFTER, String(Math.ceil((entry.resetAt - now) / 1000)))
             }
             res.status(HTTP_STATUS.TOO_MANY_REQUESTS).send(message)
         }

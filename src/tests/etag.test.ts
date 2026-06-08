@@ -1,5 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 import { staticFiles } from "../router/builtin";
+import { HTTP_HEADERS } from "../headers";
 import type { EndpointRoute } from "../types";
 import { createMockReq, createMockRes, calls } from "./utils";
 import { mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
@@ -36,7 +37,7 @@ describe("staticFiles with ETag", () => {
     const ctx = new Context(req, res);
     await routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith(
-      "ETag",
+      HTTP_HEADERS.ETAG,
       expect.stringMatching(/^".*"$/),
     );
     cleanupTestDir();
@@ -55,7 +56,7 @@ describe("staticFiles with ETag", () => {
     const ctx = new Context(req, res);
     await routes[0].handler(ctx);
     expect(res.setHeader).toHaveBeenCalledWith(
-      "Cache-Control",
+      HTTP_HEADERS.CACHE_CONTROL,
       "public, max-age=0",
     );
     cleanupTestDir();
@@ -77,7 +78,7 @@ describe("staticFiles with ETag", () => {
     await routes[0].handler(ctx1);
 
     // Get the ETag from the setHeader calls
-    const etagCall = calls(res1.setHeader).find((c) => c[0] === "ETag");
+    const etagCall = calls(res1.setHeader).find((c) => c[0] === HTTP_HEADERS.ETAG);
     const etag = etagCall ? etagCall[1] : null;
 
     // Second request with If-None-Match
@@ -144,8 +145,8 @@ describe("staticFiles with ETag", () => {
     const ctx2 = new Context(req2, res2);
     await routes[0].handler(ctx2);
 
-    const etag1 = calls(res1.setHeader).find((c) => c[0] === "ETag")?.[1];
-    const etag2 = calls(res2.setHeader).find((c) => c[0] === "ETag")?.[1];
+    const etag1 = calls(res1.setHeader).find((c) => c[0] === HTTP_HEADERS.ETAG)?.[1];
+    const etag2 = calls(res2.setHeader).find((c) => c[0] === HTTP_HEADERS.ETAG)?.[1];
 
     expect(etag1).toBe(etag2);
     cleanupTestDir();
