@@ -1,4 +1,4 @@
-import { Router } from "src/index";
+import { Router } from "../../../src/index";
 import type { FileInfo } from "./interfaces";
 import { existsSync, unlinkSync, readdirSync } from "fs";
 import { join } from "path";
@@ -55,7 +55,7 @@ export function registerUploadRoutes(router: Router): void {
         .status(500)
         .send(
           "Upload failed: " +
-          (err instanceof Error ? err.message : String(err)),
+            (err instanceof Error ? err.message : String(err)),
         );
     }
   });
