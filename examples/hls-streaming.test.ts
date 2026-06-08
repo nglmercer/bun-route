@@ -7,6 +7,11 @@ const UPSTREAM_MASTER_URL = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 function setupRouter() {
   const router = new Router();
 
+  const isManifestUrl = (url: string): boolean => {
+    const pathname = new URL(url, "https://placeholder.com").pathname;
+    return pathname.endsWith(".m3u8") || !pathname.includes(".");
+  };
+
   const rewriteManifest = (manifest: string, baseUrl: string): string => {
     const lines = manifest.split("\n");
     const base =
@@ -17,10 +22,14 @@ function setupRouter() {
         if (line.startsWith("#")) return line;
         const trimmed = line.trim();
         if (!trimmed) return line;
+        let absoluteUrl: string;
         if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-          return `${PROXY_BASE}/segment?url=${encodeURIComponent(trimmed)}`;
+          absoluteUrl = trimmed;
+        } else {
+          absoluteUrl = new URL(trimmed, base).toString();
         }
-        return `${PROXY_BASE}/segment?url=${encodeURIComponent(new URL(trimmed, base).toString())}`;
+        const endpoint = isManifestUrl(absoluteUrl) ? "manifest" : "segment";
+        return `${PROXY_BASE}/${endpoint}?url=${encodeURIComponent(absoluteUrl)}`;
       })
       .join("\n");
   };
@@ -189,87 +198,135 @@ describe("HLS Streaming Proxy", () => {
     expect(body).toContain("Proxy error:");
   });
 
-  it("rewriteManifest correctly rewrites relative segment URLs", async () => {
-    const manifest = `#EXTM3U
-#EXT-X-VERSION:3
+  it("isManifestUrl detects .m3u8 files as manifests", () => {
+    const isManifestUrl = (url: string): boolean => {
+      const pathname = new URL(url, "https://placeholder.com").pathname;
+      return pathname.endsWith(".m3u8") || !pathname.includes(".");
+    };
+
+    expect(isManifestUrl("https://example.com/master.m3u8")).toBe(true);
+    expect(isManifestUrl("https://example.com/path/playlist.m3u8")).toBe(true);
+    expect(isManifestUrl("https://example.com/segment.ts")).toBe(false);
+    expect(isManifestUrl("https://example.com/video.mp4")).toBe(false);
+    expect(isManifestUrl("https://example.com/chunk.vtt")).toBe(false);
+    expect(isManifestUrl("url_0/193039199_mp4_h264_aac_hd_7.m3u8")).toBe(true);
+    expect(isManifestUrl("url_0/193039199_mp4_h264_aac_hd_7.ts")).toBe(false);
+  });
+
+  it("rewriteManifest routes .m3u8 URLs through /manifest and .ts through /segment", () => {
+    const rewriteManifest = (manifest: string, baseUrl: string): string => {
+      const isManifestUrl = (url: string): boolean => {
+        const pathname = new URL(url, "https://placeholder.com").pathname;
+        return pathname.endsWith(".m3u8") || !pathname.includes(".");
+      };
+      const lines = manifest.split("\n");
+      const base =
+        new URL(baseUrl).origin +
+        new URL(baseUrl).pathname.replace(/\/[^/]*$/, "/");
+      return lines
+        .map((line) => {
+          if (line.startsWith("#")) return line;
+          const trimmed = line.trim();
+          if (!trimmed) return line;
+          let absoluteUrl: string;
+          if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            absoluteUrl = trimmed;
+          } else {
+            absoluteUrl = new URL(trimmed, base).toString();
+          }
+          const endpoint = isManifestUrl(absoluteUrl) ? "manifest" : "segment";
+          return `${PROXY_BASE}/${endpoint}?url=${encodeURIComponent(absoluteUrl)}`;
+        })
+        .join("\n");
+    };
+
+    const masterManifest = `#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=2149280,RESOLUTION=1280x720
+url_0/193039199_mp4_h264_aac_hd_7.m3u8
+#EXT-X-STREAM-INF:BANDWIDTH=246440,RESOLUTION=320x184
+url_2/193039199_mp4_h264_aac_ld_7.m3u8`;
+
+    const rewritten = rewriteManifest(masterManifest, "https://example.com/path/master.m3u8");
+
+    expect(rewritten).toContain(`${PROXY_BASE}/manifest?url=`);
+    expect(rewritten).not.toContain(`${PROXY_BASE}/segment?url=`);
+    expect(rewritten).toContain(encodeURIComponent("https://example.com/path/url_0/193039199_mp4_h264_aac_hd_7.m3u8"));
+
+    const mediaManifest = `#EXTM3U
 #EXT-X-TARGETDURATION:10
 #EXTINF:10.0,
 segment0.ts
 #EXTINF:10.0,
 segment1.ts`;
 
-    const baseUrl = "https://example.com/path/to/master.m3u8";
-    const base = new URL(baseUrl).origin + new URL(baseUrl).pathname.replace(/\/[^/]*$/, "/");
+    const rewrittenMedia = rewriteManifest(mediaManifest, "https://example.com/path/playlist.m3u8");
 
-    const lines = manifest.split("\n");
-    const rewritten = lines
-      .map((line) => {
-        if (line.startsWith("#")) return line;
-        const trimmed = line.trim();
-        if (!trimmed) return line;
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-          return `${PROXY_BASE}/segment?url=${encodeURIComponent(trimmed)}`;
-        }
-        return `${PROXY_BASE}/segment?url=${encodeURIComponent(new URL(trimmed, base).toString())}`;
-      })
-      .join("\n");
-
-    expect(rewritten).toContain("#EXTM3U");
-    expect(rewritten).toContain("#EXT-X-VERSION:3");
-    expect(rewritten).toContain("#EXT-X-TARGETDURATION:10");
-    expect(rewritten).toContain("#EXTINF:10.0,");
-    expect(rewritten).toContain(`${PROXY_BASE}/segment?url=${encodeURIComponent("https://example.com/path/to/segment0.ts")}`);
-    expect(rewritten).toContain(`${PROXY_BASE}/segment?url=${encodeURIComponent("https://example.com/path/to/segment1.ts")}`);
+    expect(rewrittenMedia).toContain(`${PROXY_BASE}/segment?url=`);
+    expect(rewrittenMedia).not.toContain(`${PROXY_BASE}/manifest?url=`);
+    expect(rewrittenMedia).toContain(encodeURIComponent("https://example.com/path/segment0.ts"));
+    expect(rewrittenMedia).toContain(encodeURIComponent("https://example.com/path/segment1.ts"));
   });
 
-  it("rewriteManifest correctly rewrites absolute segment URLs", async () => {
+  it("rewriteManifest handles absolute URLs in manifest", () => {
+    const isManifestUrl = (url: string): boolean => {
+      const pathname = new URL(url, "https://placeholder.com").pathname;
+      return pathname.endsWith(".m3u8") || !pathname.includes(".");
+    };
+
     const manifest = `#EXTM3U
-#EXT-X-VERSION:3
-#EXT-X-TARGETDURATION:10
+#EXT-X-STREAM-INF:BANDWIDTH=2149280
+https://cdn.example.com/playlist.m3u8
 #EXTINF:10.0,
 https://cdn.example.com/segments/seg0.ts`;
 
-    const baseUrl = "https://example.com/path/to/master.m3u8";
-
     const lines = manifest.split("\n");
-    const base =
-      new URL(baseUrl).origin +
-      new URL(baseUrl).pathname.replace(/\/[^/]*$/, "/");
+    const base = "https://example.com/";
     const rewritten = lines
       .map((line) => {
         if (line.startsWith("#")) return line;
         const trimmed = line.trim();
         if (!trimmed) return line;
+        let absoluteUrl: string;
         if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-          return `${PROXY_BASE}/segment?url=${encodeURIComponent(trimmed)}`;
+          absoluteUrl = trimmed;
+        } else {
+          absoluteUrl = new URL(trimmed, base).toString();
         }
-        return `${PROXY_BASE}/segment?url=${encodeURIComponent(new URL(trimmed, base).toString())}`;
+        const endpoint = isManifestUrl(absoluteUrl) ? "manifest" : "segment";
+        return `${PROXY_BASE}/${endpoint}?url=${encodeURIComponent(absoluteUrl)}`;
       })
       .join("\n");
 
-    expect(rewritten).toContain(
-      `${PROXY_BASE}/segment?url=${encodeURIComponent("https://cdn.example.com/segments/seg0.ts")}`
-    );
+    expect(rewritten).toContain(`${PROXY_BASE}/manifest?url=${encodeURIComponent("https://cdn.example.com/playlist.m3u8")}`);
+    expect(rewritten).toContain(`${PROXY_BASE}/segment?url=${encodeURIComponent("https://cdn.example.com/segments/seg0.ts")}`);
   });
 
-  it("rewriteManifest preserves empty lines and comments", async () => {
+  it("rewriteManifest preserves comments and empty lines", () => {
+    const isManifestUrl = (url: string): boolean => {
+      const pathname = new URL(url, "https://placeholder.com").pathname;
+      return pathname.endsWith(".m3u8") || !pathname.includes(".");
+    };
+
     const manifest = `#EXTM3U
 #EXT-X-VERSION:3
 
 #EXT-X-TARGETDURATION:10`;
 
-    const baseUrl = "https://example.com/master.m3u8";
-
     const lines = manifest.split("\n");
-    const base =
-      new URL(baseUrl).origin +
-      new URL(baseUrl).pathname.replace(/\/[^/]*$/, "/");
+    const base = "https://example.com/";
     const rewritten = lines
       .map((line) => {
         if (line.startsWith("#")) return line;
         const trimmed = line.trim();
         if (!trimmed) return line;
-        return `${PROXY_BASE}/segment?url=${encodeURIComponent(new URL(trimmed, base).toString())}`;
+        let absoluteUrl: string;
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+          absoluteUrl = trimmed;
+        } else {
+          absoluteUrl = new URL(trimmed, base).toString();
+        }
+        const endpoint = isManifestUrl(absoluteUrl) ? "manifest" : "segment";
+        return `${PROXY_BASE}/${endpoint}?url=${encodeURIComponent(absoluteUrl)}`;
       })
       .join("\n");
 
@@ -277,5 +334,20 @@ https://cdn.example.com/segments/seg0.ts`;
     expect(rewritten).toContain("#EXT-X-VERSION:3");
     expect(rewritten).toContain("#EXT-X-TARGETDURATION:10");
     expect(rewritten.split("\n").length).toBe(4);
+  });
+
+  it("GET /hls/proxy/manifest fetches and rewrites upstream manifest", async () => {
+    const resp = await fetch(
+      `${baseUrl}${PROXY_BASE}/manifest?url=${encodeURIComponent(UPSTREAM_MASTER_URL)}`
+    );
+    expect(resp.status).toBe(200);
+    expect(resp.headers.get("Content-Type")).toBe("application/vnd.apple.mpegurl");
+    expect(resp.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    expect(resp.headers.get("Cache-Control")).toBe("no-cache");
+
+    const body = await resp.text();
+    expect(body).toContain("#EXTM3U");
+    expect(body).toContain(`${PROXY_BASE}/manifest?url=`);
+    expect(body).not.toContain(`${PROXY_BASE}/segment?url=`);
   });
 });
