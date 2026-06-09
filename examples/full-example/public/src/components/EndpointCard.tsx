@@ -5,13 +5,13 @@ import type { OpenApiOperation, OpenApiParameter } from "../api/spec";
 import { TryIt } from "./TryIt";
 import { askAI, generateDocs } from "../api/ai";
 
+const aiDocsCache = new Map<string, string>();
+
 interface EndpointCardProps {
   path: string;
   method: string;
   safeId: string;
   operation: OpenApiOperation;
-  aiDocs?: string;
-  aiDocsLoading?: boolean;
 }
 
 function ExpandArrow({ expanded }: { expanded: boolean }) {
@@ -56,7 +56,7 @@ function ParametersTable({ params }: { params: OpenApiParameter[] }) {
   `;
 }
 
-export function EndpointCard({ path, method, safeId, operation, aiDocs, aiDocsLoading }: EndpointCardProps) {
+export function EndpointCard({ path, method, safeId, operation }: EndpointCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [aiModal, setAiModal] = useState<{ open: boolean; type: "ask" | "docs" | null; loading: boolean; content: string; error: string | null }>({
@@ -111,9 +111,16 @@ export function EndpointCard({ path, method, safeId, operation, aiDocs, aiDocsLo
   };
 
   const handleGenerateDocs = async () => {
+    const cacheKey = `${method}:${path}`;
+    const cached = aiDocsCache.get(cacheKey);
+    if (cached) {
+      setAiModal((prev) => ({ ...prev, content: cached }));
+      return;
+    }
     setAiModal((prev) => ({ ...prev, loading: true, error: null }));
     try {
       const docs = await generateDocs(path, method);
+      aiDocsCache.set(cacheKey, docs);
       setAiModal((prev) => ({ ...prev, loading: false, content: docs }));
     } catch (err) {
       setAiModal((prev) => ({
@@ -159,21 +166,6 @@ export function EndpointCard({ path, method, safeId, operation, aiDocs, aiDocsLo
               </div>
             </div>
           `}
-          ${aiDocs
-            ? html`
-                <div class="ai-docs-section">
-                  <div class="ai-docs-header">
-                    <span class="ai-docs-badge">AI</span>
-                    <span>Documentation</span>
-                  </div>
-                  <div class="ai-docs-content">
-                    <pre>${aiDocs}</pre>
-                  </div>
-                </div>
-              `
-            : aiDocsLoading
-              ? html`<div class="ai-docs-loading">Generating AI documentation...</div>`
-              : null}
           ${operation.parameters && operation.parameters.length > 0
             ? html`<${ParametersTable} params=${operation.parameters} />`
             : null}

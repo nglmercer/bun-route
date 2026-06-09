@@ -1,5 +1,51 @@
 import { handlerName } from "../../../src/index";
-import type { Router } from "../../../src/index";
+import type { Router, RouteDefinition } from "../../../src/index";
+
+function toOpenApiSpec(defs: RouteDefinition[]) {
+  const paths: Record<string, Record<string, unknown>> = {};
+  for (const def of defs) {
+    if (!def.method || def.method === "ALL" || def.middlewareName) continue;
+    const method = def.method.toLowerCase();
+    if (!paths[def.path]) paths[def.path] = {};
+    const params: Record<string, unknown>[] = [];
+    for (const p of def.pathParams) {
+      params.push({
+        name: p.name,
+        in: "path",
+        required: true,
+        schema: { type: "string" },
+      });
+    }
+    for (const q of def.queryParams || []) {
+      params.push({
+        name: q.name,
+        in: "query",
+        required: q.required ?? false,
+        description: q.description,
+        schema: {
+          type: q.type || "string",
+          ...(q.default !== undefined ? { default: q.default } : {}),
+          ...(q.enum ? { enum: q.enum } : {}),
+        },
+      });
+    }
+    paths[def.path][method] = {
+      summary: `${def.method} ${def.path}`,
+      description: `Handler: ${def.handlerName}`,
+      parameters: params.length > 0 ? params : undefined,
+      responses: {
+        "200": { description: "Successful response" },
+        "400": { description: "Bad request" },
+        "500": { description: "Internal server error" },
+      },
+    };
+  }
+  return {
+    openapi: "3.0.3",
+    info: { title: "router-bun full example", version: "1.0.0" },
+    paths,
+  };
+}
 
 export function registerInfoRoutes(router: Router): void {
   router.get(
@@ -26,8 +72,8 @@ export function registerInfoRoutes(router: Router): void {
   router.get(
     "/api/openapi",
     handlerName("getOpenApi", async ({ res }) => {
-      const spec = router.getRouteDefinitions();
-      res.json(spec);
+      const defs = router.getRouteDefinitions();
+      res.json(toOpenApiSpec(defs));
     }),
   );
 
