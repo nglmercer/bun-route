@@ -1,28 +1,17 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en" data-theme="dark">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>router-bun API Documentation</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
-  <link rel="stylesheet" href="./src/styles/theme.css">
-</head>
-<body>
-  <div class="app-layout">
-    <aside class="sidebar" id="sidebar"></aside>
-    <main class="main-content">
-      <header class="content-header">
-        <h1>API Documentation</h1>
-        <button class="theme-toggle">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-          </svg>
-          Dark
-        </button>
-      </header>
-      <div class="endpoints-container" id="endpoints"></div>
-    </main>
-  </div>
-  <script type="module" src="./src/main.ts"></script>
-</body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>router-bun API Documentation</title>
+        <link
+            rel="icon"
+            href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>"
+        />
+        <link rel="stylesheet" href="./src/styles/main.css" />
+    </head>
+    <body>
+        <div id="app"></div>
+        <script type="module" src="./src/main.tsx"></script>
+    </body>
 </html>
