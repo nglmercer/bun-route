@@ -20,11 +20,25 @@ function ThemeToggle() {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const toggle = () => setTheme((t) => (t === "dark" ? "light" : "dark"));
-
   return html`
-    <button class="theme-toggle" onClick=${toggle} aria-label="Toggle theme">
+    <button
+      class="theme-toggle"
+      onClick=${() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+      aria-label="Toggle theme"
+    >
       ${theme === "dark" ? "Light" : "Dark"}
+    </button>
+  `;
+}
+
+function Hamburger({ onClick }: { onClick: () => void }) {
+  return html`
+    <button class="hamburger" onClick=${onClick} aria-label="Toggle menu">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <line x1="3" y1="12" x2="21" y2="12" />
+        <line x1="3" y1="18" x2="21" y2="18" />
+      </svg>
     </button>
   `;
 }
@@ -53,6 +67,8 @@ export function App() {
   const [spec, setSpec] = useState<OpenApiSpec | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchSpec()
@@ -95,45 +111,89 @@ export function App() {
     return () => window.removeEventListener("hashchange", handleHash);
   }, [spec]);
 
-  const groups = useMemo(() => (spec ? groupEndpoints(spec) : []), [spec]);
+  const groups = useMemo(() => {
+    if (!spec) return [];
+    const all = groupEndpoints(spec);
+    if (!search.trim()) return all;
+    const q = search.toLowerCase();
+    return all
+      .map((group) => ({
+        ...group,
+        paths: group.paths.filter(
+          (item) =>
+            item.path.toLowerCase().includes(q) ||
+            item.method.toLowerCase().includes(q) ||
+            (item.operation.summary && item.operation.summary.toLowerCase().includes(q)),
+        ),
+      }))
+      .filter((group) => group.paths.length > 0);
+  }, [spec, search]);
+
+  const totalEndpoints = useMemo(() => {
+    if (!spec) return 0;
+    return groupEndpoints(spec).reduce((sum, g) => sum + g.paths.length, 0);
+  }, [spec]);
+
+  const filteredCount = useMemo(() => groups.reduce((sum, g) => sum + g.paths.length, 0), [groups]);
 
   const handleNavigate = (id: string) => {
     setActiveId(id);
+    setSidebarOpen(false);
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   return html`
     <div class="app-layout">
-      ${spec && html`<${Sidebar} groups=${groups} activeId=${activeId} onNavigate=${handleNavigate} />`}
+      <div
+        class=${`sidebar-overlay ${sidebarOpen ? "visible" : ""}`}
+        onClick=${() => setSidebarOpen(false)}
+      />
+      ${spec && html`
+        <${Sidebar}
+          groups=${groups}
+          activeId=${activeId}
+          onNavigate=${handleNavigate}
+          search=${search}
+          onSearch=${setSearch}
+          open=${sidebarOpen}
+          totalEndpoints=${totalEndpoints}
+          filteredCount=${filteredCount}
+        />
+      `}
       <main class="main-content">
         <header class="content-header">
+          <${Hamburger} onClick=${() => setSidebarOpen((v) => !v)} />
           <h1>${spec?.info?.title || "API Documentation"}</h1>
-          <${ThemeToggle} />
+          <div class="header-actions">
+            <${ThemeToggle} />
+          </div>
         </header>
         <div class="endpoints-container" id="endpoints">
           ${error
             ? html`<${ErrorState} message=${error} />`
             : !spec
               ? html`<${Loading} />`
-              : groups.map(
-                  (group) => html`
-                    <div class="endpoint-section" key=${group.tag}>
-                      <h2 class="section-title">${capitalize(group.tag)}</h2>
-                      ${group.paths.map(
-                        (item) => html`
-                          <${EndpointCard}
-                            key=${item.safeId}
-                            path=${item.path}
-                            method=${item.method}
-                            safeId=${item.safeId}
-                            operation=${item.operation}
-                          />
-                        `,
-                      )}
-                    </div>
-                  `,
-                )}
+              : groups.length === 0 && search
+                ? html`<div class="loading-indicator">No endpoints match "${search}"</div>`
+                : groups.map(
+                    (group) => html`
+                      <div class="endpoint-section" key=${group.tag}>
+                        <h2 class="section-title">${capitalize(group.tag)}</h2>
+                        ${group.paths.map(
+                          (item) => html`
+                            <${EndpointCard}
+                              key=${item.safeId}
+                              path=${item.path}
+                              method=${item.method}
+                              safeId=${item.safeId}
+                              operation=${item.operation}
+                            />
+                          `,
+                        )}
+                      </div>
+                    `,
+                  )}
         </div>
       </main>
     </div>
