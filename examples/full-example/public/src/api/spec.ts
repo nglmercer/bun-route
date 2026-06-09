@@ -6,7 +6,14 @@ export interface OpenApiSpec {
 
 export interface OpenApiOperation {
   summary?: string;
+  description?: string;
   parameters?: OpenApiParameter[];
+  responses?: Record<string, {
+    description?: string;
+    content?: Record<string, {
+      schema?: Record<string, unknown>;
+    }>;
+  }>;
 }
 
 export interface OpenApiParameter {

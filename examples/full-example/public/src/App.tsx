@@ -1,11 +1,12 @@
 import { h } from "preact";
-import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { html } from "htm/preact";
 import { fetchSpec, groupEndpoints } from "./api/spec";
 import type { OpenApiSpec } from "./api/spec";
 import { Sidebar } from "./components/Sidebar";
 import { EndpointCard } from "./components/EndpointCard";
 import { I18nProvider, useI18n } from "./i18n/context";
+import { generateDocs } from "./api/ai";
 
 type Theme = "dark" | "light";
 const ALL_METHODS = ["get", "post", "put", "patch", "delete", "options", "head"] as const;
@@ -102,6 +103,9 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeMethods, setActiveMethods] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [aiDocs, setAiDocs] = useState<Record<string, string>>({});
+  const [aiDocsLoading, setAiDocsLoading] = useState<Record<string, boolean>>({});
+  const loadedRef = useRef(false);
   const { t } = useI18n();
 
   useEffect(() => {
@@ -109,6 +113,36 @@ function AppContent() {
       .then(setSpec)
       .catch((err) => setError(err instanceof Error ? err.message : "Network error"));
   }, []);
+
+  const allGroups = useMemo(() => (spec ? groupEndpoints(spec) : []), [spec]);
+
+  useEffect(() => {
+    if (!spec || loadedRef.current) return;
+    loadedRef.current = true;
+    const endpoints = allGroups.flatMap((g) => g.paths);
+    const loading: Record<string, boolean> = {};
+    for (const ep of endpoints) loading[ep.safeId] = true;
+    setAiDocsLoading(loading);
+
+    let cancelled = false;
+    Promise.all(
+      endpoints.map((ep) =>
+        generateDocs(ep.path, ep.method)
+          .then((docs) => {
+            if (!cancelled) {
+              setAiDocs((prev) => ({ ...prev, [ep.safeId]: docs }));
+              setAiDocsLoading((prev) => ({ ...prev, [ep.safeId]: false }));
+            }
+          })
+          .catch(() => {
+            if (!cancelled) {
+              setAiDocsLoading((prev) => ({ ...prev, [ep.safeId]: false }));
+            }
+          })
+      )
+    );
+    return () => { cancelled = true; };
+  }, [spec, allGroups]);
 
   useEffect(() => {
     if (!spec) return;
@@ -144,8 +178,6 @@ function AppContent() {
     handleHash();
     return () => window.removeEventListener("hashchange", handleHash);
   }, [spec]);
-
-  const allGroups = useMemo(() => (spec ? groupEndpoints(spec) : []), [spec]);
 
   const methodCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -266,6 +298,8 @@ function AppContent() {
                               method=${item.method}
                               safeId=${item.safeId}
                               operation=${item.operation}
+                              aiDocs=${aiDocs[item.safeId]}
+                              aiDocsLoading=${aiDocsLoading[item.safeId] ?? false}
                             />
                           `,
                         )}

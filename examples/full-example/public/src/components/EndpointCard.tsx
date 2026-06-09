@@ -10,6 +10,8 @@ interface EndpointCardProps {
   method: string;
   safeId: string;
   operation: OpenApiOperation;
+  aiDocs?: string;
+  aiDocsLoading?: boolean;
 }
 
 function ExpandArrow({ expanded }: { expanded: boolean }) {
@@ -54,7 +56,7 @@ function ParametersTable({ params }: { params: OpenApiParameter[] }) {
   `;
 }
 
-export function EndpointCard({ path, method, safeId, operation }: EndpointCardProps) {
+export function EndpointCard({ path, method, safeId, operation, aiDocs, aiDocsLoading }: EndpointCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
   const [aiModal, setAiModal] = useState<{ open: boolean; type: "ask" | "docs" | null; loading: boolean; content: string; error: string | null }>({
@@ -140,6 +142,33 @@ export function EndpointCard({ path, method, safeId, operation }: EndpointCardPr
       </div>
       <div class=${`endpoint-body ${expanded ? "expanded" : ""}`}>
         <div class="endpoint-body-inner">
+          ${operation.description ? html`<p class="endpoint-description">${operation.description}</p>` : null}
+          ${operation.responses && html`
+            <div class="ai-docs-section">
+              <div class="ai-docs-header">
+                <span class="ai-docs-badge">AI</span>
+                <span>Response Schema</span>
+              </div>
+              <div class="ai-docs-content">
+                <pre>${JSON.stringify(operation.responses, null, 2)}</pre>
+              </div>
+            </div>
+          `}
+          ${aiDocs
+            ? html`
+                <div class="ai-docs-section">
+                  <div class="ai-docs-header">
+                    <span class="ai-docs-badge">AI</span>
+                    <span>Documentation</span>
+                  </div>
+                  <div class="ai-docs-content">
+                    <pre>${aiDocs}</pre>
+                  </div>
+                </div>
+              `
+            : aiDocsLoading
+              ? html`<div class="ai-docs-loading">Generating AI documentation...</div>`
+              : null}
           ${operation.parameters && operation.parameters.length > 0
             ? html`<${ParametersTable} params=${operation.parameters} />`
             : null}

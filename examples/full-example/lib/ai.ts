@@ -561,8 +561,15 @@ Respond in the same language as the question or use locale: ${locale}.`;
 
 ${endpointContext}${responseInfo}
 
-Include: description, parameters, response, and example.
-Respond in locale: ${locale}.`;
+Include in this EXACT order:
+1. Title (H1): endpoint path
+2. Description: what it does
+3. Auth: required roles/permissions
+4. Parameters table: name | type | required | description
+5. Response example (JSON)
+6. Error codes: status | cause
+
+Keep it concise. Use markdown tables. Respond in locale: ${locale}.`;
       console.log(
         `[AI Docs] Sending to: ${config.baseURL}, model: ${config.model}`,
       );
@@ -583,7 +590,13 @@ Respond in locale: ${locale}.`;
         });
 
         console.log(`[AI Docs] Response: ${text?.substring(0, 100)}...`);
-        res.json({ documentation: text || "No documentation generated" });
+        res.json({
+          documentation: text || "No documentation generated",
+          format: "markdown",
+          locale,
+          path: body.path,
+          method: body.method.toUpperCase(),
+        });
       } catch (err) {
         console.error("[AI Docs Error]", err);
         const message = err instanceof Error ? err.message : "Unknown error";
