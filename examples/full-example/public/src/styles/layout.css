@@ -1,0 +1,180 @@
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ===== Mobile overlay ===== */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg);
+  z-index: 99;
+}
+
+.sidebar-overlay.visible {
+  display: block;
+}
+
+/* ===== Main content ===== */
+.main-content {
+  margin-left: 280px;
+  flex: 1;
+  min-width: 0;
+}
+
+.content-header {
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 50;
+  gap: 1rem;
+}
+
+.content-header h1 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+/* ===== Mobile hamburger ===== */
+.hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 0.35rem;
+  border-radius: 4px;
+  line-height: 0;
+}
+
+.hamburger:hover {
+  background: var(--bg-tertiary);
+}
+
+/* ===== Theme toggle ===== */
+.theme-toggle {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.theme-toggle:hover {
+  background: var(--border-color);
+  color: var(--text-primary);
+}
+
+/* ===== Endpoints container ===== */
+.endpoints-container {
+  padding: 1.5rem 2rem;
+  max-width: 960px;
+}
+
+/* ===== Responsive — Tablet ===== */
+@media (max-width: 900px) {
+  .main-content {
+    margin-left: 260px;
+  }
+
+  .endpoints-container {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .content-header {
+    padding: 0.75rem 1.5rem;
+  }
+}
+
+/* ===== Responsive — Mobile ===== */
+@media (max-width: 640px) {
+  .main-content {
+    margin-left: 0;
+  }
+
+  .content-header {
+    padding: 0.65rem 1rem;
+  }
+
+  .content-header h1 {
+    font-size: 1rem;
+  }
+
+  .hamburger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .endpoints-container {
+    padding: 1rem;
+  }
+
+  .section-title {
+    font-size: 1.15rem;
+  }
+
+  .endpoint-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .endpoint-path {
+    font-size: 0.78rem;
+  }
+
+  .endpoint-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .tryit-url-bar {
+    flex-wrap: wrap;
+  }
+
+  .tryit-url {
+    font-size: 0.78rem;
+    order: 3;
+    flex-basis: 100%;
+    margin-top: 0.25rem;
+  }
+
+  .tryit-body-editor textarea {
+    min-height: 80px;
+  }
+
+  .response-body pre {
+    font-size: 0.7rem;
+    padding: 0.5rem;
+  }
+
+  .params-table {
+    font-size: 0.72rem;
+  }
+
+  .params-table th,
+  .params-table td {
+    padding: 0.3rem 0.5rem;
+  }
+}

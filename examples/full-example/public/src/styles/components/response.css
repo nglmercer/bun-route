@@ -1,0 +1,76 @@
+.tryit-response {
+  border-top: 1px solid var(--border-color);
+}
+
+.response-loading {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.response-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.response-status {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.status-ok .response-status { color: var(--status-ok); }
+.status-err .response-status,
+.status-client-err .response-status,
+.status-server-err .response-status { color: var(--status-err); }
+.status-redirect .response-status { color: var(--status-redirect); }
+
+.status-ok { border-left: 3px solid var(--status-ok); }
+.status-err,
+.status-client-err,
+.status-server-err { border-left: 3px solid var(--status-err); }
+.status-redirect { border-left: 3px solid var(--status-redirect); }
+
+.response-headers {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.response-headers details summary {
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.response-headers pre {
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.response-body {
+  padding: 1rem;
+}
+
+.response-body pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.75rem;
+  overflow-x: auto;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.response-body code {
+  font-family: "SF Mono", "Fira Code", "Fira Mono", monospace;
+}
+
+.error-text {
+  color: var(--status-err);
+}

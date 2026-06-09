@@ -11,7 +11,19 @@ interface EndpointCardProps {
   operation: OpenApiOperation;
 }
 
-function renderParametersTable(params: OpenApiParameter[]) {
+function ExpandArrow({ expanded }: { expanded: boolean }) {
+  return html`
+    <svg
+      class=${`endpoint-expand-icon ${expanded ? "expanded" : ""}`}
+      width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    >
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  `;
+}
+
+function ParametersTable({ params }: { params: OpenApiParameter[] }) {
   return html`
     <div class="endpoint-params">
       <h4>Parameters</h4>
@@ -30,7 +42,7 @@ function renderParametersTable(params: OpenApiParameter[]) {
               <tr key=${`${p.in}-${p.name}`}>
                 <td><code>${p.name}</code></td>
                 <td>${p.in}</td>
-                <td>${p.schema?.type || "string"}${p.schema?.enum ? ` (${p.schema.enum.join(", ")})` : ""}</td>
+                <td>${p.schema?.type || "string"}${p.schema?.enum ? html`<span class="param-enum">${p.schema.enum.join(", ")}</span>` : ""}</td>
                 <td>${p.required ? html`<span class="required-yes">Yes</span>` : "No"}</td>
               </tr>
             `,
@@ -57,37 +69,33 @@ export function EndpointCard({ path, method, safeId, operation }: EndpointCardPr
   };
 
   return html`
-    <div class="endpoint-card" id=${safeId}>
-      <div class="endpoint-header">
+    <div class=${`endpoint-card ${expanded ? "is-expanded" : ""}`} id=${safeId}>
+      <div class="endpoint-header" onClick=${() => setExpanded((v) => !v)}>
         <div class="endpoint-title">
           <span class=${`method-badge method-${method}`}>${method.toUpperCase()}</span>
           <span class="endpoint-path">${path}</span>
+          ${operation.summary && html`<span class="endpoint-summary-text">${operation.summary}</span>`}
         </div>
-        <div class="endpoint-actions">
+        <div class="endpoint-actions" onClick=${(e: Event) => e.stopPropagation()}>
           <button class="btn btn-copy" onClick=${handleCopy} title="Copy as cURL">
             ${copied ? "Copied!" : "cURL"}
           </button>
-          <button
-            class="btn btn-expand"
-            onClick=${() => setExpanded((v) => !v)}
-            title="Try it out"
-          >
-            ${expanded ? "Close" : "Try it"}
-          </button>
+          <${ExpandArrow} expanded=${expanded} />
         </div>
       </div>
-      <div class="endpoint-body">
-        ${operation.summary && html`<p class="endpoint-summary">${operation.summary}</p>`}
-        ${operation.parameters && operation.parameters.length > 0
-          ? renderParametersTable(operation.parameters)
-          : null}
-        ${expanded
-          ? html`
-              <div class="tryit-container">
-                <${TryIt} path=${path} method=${method} params=${operation.parameters} />
-              </div>
-            `
-          : null}
+      <div class=${`endpoint-body ${expanded ? "expanded" : ""}`}>
+        <div class="endpoint-body-inner">
+          ${operation.parameters && operation.parameters.length > 0
+            ? html`<${ParametersTable} params=${operation.parameters} />`
+            : null}
+          ${expanded
+            ? html`
+                <div class="tryit-container">
+                  <${TryIt} path=${path} method=${method} params=${operation.parameters} />
+                </div>
+              `
+            : null}
+        </div>
       </div>
     </div>
   `;
