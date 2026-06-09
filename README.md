@@ -586,6 +586,7 @@ When stats are recorded, `router.dump()` includes request count and average resp
 | [static-serve](./examples/static-serve.ts) | Static file serving |
 | [chat-demo](./examples/chat-demo) | Full demo: auth, file upload, WebSocket chat, groups |
 | [socket-io](./examples/socket-io) | Socket.IO chat example (rooms, typing, online users) |
+| [full-example](./examples/full-example) | **All features**: CRUD, middleware, SSE, upload, static, groups, OpenAPI, testing |
 
 ---
 

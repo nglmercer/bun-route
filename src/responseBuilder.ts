@@ -15,10 +15,12 @@ export const HTTP_STATUS = {
     NO_CONTENT: 204,
     TEMPORARY_REDIRECT: 307,
     PERMANENT_REDIRECT: 308,
+    BAD_REQUEST: 400,
     UNAUTHORIZED: 401,
     FORBIDDEN: 403,
     NOT_FOUND: 404,
     REQUEST_TIMEOUT: 408,
+    BAD_GATEWAY: 502,
     TOO_MANY_REQUESTS: 429,
     INTERNAL_SERVER_ERROR: 500,
 } as const
@@ -381,7 +383,9 @@ export class ResponseBuilder {
      * @returns void because it is submitted to the client
      */
     sendText(data: string, code?: number): void {
+        const savedStatusCode = this.statusCode
         this._resetForSend()
+        this.statusCode = savedStatusCode
         this.bodyInit = data
         this.setHeader(_HTTP_HEADERS.CONTENT_TYPE, CONTENT_TYPES.TEXT_PLAIN)
         if (code) this.statusCode = code
@@ -401,7 +405,9 @@ export class ResponseBuilder {
      * @returns void because it is submitted to the client
      */
     sendHtml(data: string, code?: number): void {
+        const savedStatusCode = this.statusCode
         this._resetForSend()
+        this.statusCode = savedStatusCode
         this.bodyInit = data
         this.setHeader(_HTTP_HEADERS.CONTENT_TYPE, CONTENT_TYPES.TEXT_HTML)
         if (code) this.statusCode = code
