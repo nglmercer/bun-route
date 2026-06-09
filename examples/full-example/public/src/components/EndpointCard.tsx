@@ -1,11 +1,13 @@
+import { h } from "preact";
 import { useState } from "preact/hooks";
+import { html } from "htm/preact";
 import type { OpenApiOperation, OpenApiParameter } from "../api/spec";
 import { TryIt } from "./TryIt";
-import { html } from "../html";
 
 interface EndpointCardProps {
   path: string;
   method: string;
+  safeId: string;
   operation: OpenApiOperation;
 }
 
@@ -13,7 +15,7 @@ function methodClass(method: string): string {
   return `method-badge method-${method}`;
 }
 
-export function EndpointCard({ path, method, operation }: EndpointCardProps) {
+export function EndpointCard({ path, method, safeId, operation }: EndpointCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -29,14 +31,18 @@ export function EndpointCard({ path, method, operation }: EndpointCardProps) {
   };
 
   return html`
-    <div class="endpoint-card" id="${`${method}-${path}`}">
+    <div class="endpoint-card" id="${safeId}">
       <div class="endpoint-header">
         <div class="endpoint-title">
           <span class=${methodClass(method)}>${method.toUpperCase()}</span>
           <span class="endpoint-path">${path}</span>
         </div>
         <div class="endpoint-actions">
-          <button class="btn btn-copy" onClick=${handleCopy} title="Copy as cURL">
+          <button
+            class="btn btn-copy"
+            onClick=${handleCopy}
+            title="Copy as cURL"
+          >
             ${copied ? "Copied!" : "cURL"}
           </button>
           <button
@@ -49,14 +55,19 @@ export function EndpointCard({ path, method, operation }: EndpointCardProps) {
         </div>
       </div>
       <div class="endpoint-body">
-        ${operation.summary && html`<p class="endpoint-summary">${operation.summary}</p>`}
+        ${operation.summary &&
+        html`<p class="endpoint-summary">${operation.summary}</p>`}
         ${operation.parameters && operation.parameters.length > 0
           ? renderParametersTable(operation.parameters)
           : null}
         ${expanded
           ? html`
               <div class="tryit-container">
-                <${TryIt} path=${path} method=${method} params=${operation.parameters} />
+                <${TryIt}
+                  path=${path}
+                  method=${method}
+                  params=${operation.parameters}
+                />
               </div>
             `
           : null}
@@ -89,7 +100,11 @@ function renderParametersTable(params: OpenApiParameter[]) {
                     ? ` (${p.schema.enum.join(", ")})`
                     : ""}
                 </td>
-                <td>${p.required ? html`<span class="required-yes">Yes</span>` : "No"}</td>
+                <td>
+                  ${p.required
+                    ? html`<span class="required-yes">Yes</span>`
+                    : "No"}
+                </td>
               </tr>
             `,
           )}

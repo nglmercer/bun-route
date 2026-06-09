@@ -1,8 +1,9 @@
+import { h } from "preact";
 import { useState } from "preact/hooks";
+import { html } from "htm/preact";
 import type { OpenApiParameter } from "../api/spec";
-import { ResponseViewerInner, executeRequest } from "./ResponseViewer";
-import { html } from "../html";
-
+import { executeRequest } from "./ResponseViewer";
+import { ResponseViewerInner } from "./ResponseViewer";
 interface TryItProps {
   path: string;
   method: string;
@@ -27,8 +28,10 @@ export function TryIt({ path, method, params }: TryItProps) {
   const initialQueryValues: Record<string, string> = {};
   for (const p of queryParams) initialQueryValues[p.name] = defaultForParam(p);
 
-  const [pathValues, setPathValues] = useState<Record<string, string>>(initialPathValues);
-  const [queryValues, setQueryValues] = useState<Record<string, string>>(initialQueryValues);
+  const [pathValues, setPathValues] =
+    useState<Record<string, string>>(initialPathValues);
+  const [queryValues, setQueryValues] =
+    useState<Record<string, string>>(initialQueryValues);
   const [body, setBody] = useState<string>("{}");
   const [response, setResponse] = useState<{
     status: number;
@@ -48,8 +51,15 @@ export function TryIt({ path, method, params }: TryItProps) {
   const buildUrl = (): string => {
     let url = path;
     for (const p of pathParams) {
-      const value = pathValues[p.name] || `{${p.name}}`;
-      url = url.replace(`:${p.name}`, encodeURIComponent(value));
+      const value = encodeURIComponent(pathValues[p.name] || p.name || "");
+      url = url.replace(`:${p.name}`, value);
+      url = url.replace(`{${p.name}}`, value);
+      if (url.includes("**")) {
+        url = url.replace("**", value);
+      }
+      if (url.includes("*")) {
+        url = url.replace("*", value);
+      }
     }
     const queryParts: string[] = [];
     for (const p of queryParams) {
@@ -69,6 +79,8 @@ export function TryIt({ path, method, params }: TryItProps) {
       const url = buildUrl();
       const requestBody = hasBody(method) ? body : undefined;
       const result = await executeRequest(method, url, requestBody);
+      console.log(result);
+      return;
       setResponse(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -81,9 +93,15 @@ export function TryIt({ path, method, params }: TryItProps) {
     <div class="tryit-panel">
       <div class="tryit-request">
         <div class="tryit-url-bar">
-          <span class=${`method-badge method-${method}`}>${method.toUpperCase()}</span>
+          <span class=${`method-badge method-${method}`}
+            >${method.toUpperCase()}</span
+          >
           <code class="tryit-url">${path}</code>
-          <button class="btn btn-send" onClick=${handleSend} disabled=${sending}>
+          <button
+            class="btn btn-send"
+            onClick=${handleSend}
+            disabled=${sending}
+          >
             ${sending ? "Sending..." : "Send"}
           </button>
         </div>
@@ -104,7 +122,10 @@ export function TryIt({ path, method, params }: TryItProps) {
                         placeholder=${p.schema?.type || "string"}
                         value=${pathValues[p.name] ?? ""}
                         onInput=${(e: Event) =>
-                          updatePath(p.name, (e.currentTarget as HTMLInputElement).value)}
+                          updatePath(
+                            p.name,
+                            (e.currentTarget as HTMLInputElement).value,
+                          )}
                       />
                     </div>
                   `,
@@ -112,7 +133,6 @@ export function TryIt({ path, method, params }: TryItProps) {
               </div>
             `
           : null}
-
         ${queryParams.length > 0
           ? html`
               <div class="tryit-section">
@@ -136,7 +156,10 @@ export function TryIt({ path, method, params }: TryItProps) {
                             >
                               <option value="">-- select --</option>
                               ${p.schema.enum.map(
-                                (v) => html`<option value=${v} key=${v}>${v}</option>`,
+                                (v) =>
+                                  html`<option value=${v} key=${v}>
+                                    ${v}
+                                  </option>`,
                               )}
                             </select>
                           `
@@ -159,7 +182,6 @@ export function TryIt({ path, method, params }: TryItProps) {
               </div>
             `
           : null}
-
         ${hasBody(method)
           ? html`
               <div class="tryit-section">

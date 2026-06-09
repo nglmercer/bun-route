@@ -798,7 +798,7 @@ export function serveStatic(
         if (sourcemapMode === "external") {
           const map = sourcemapCache.get(resolvedPath);
           if (map) {
-            const urlPath = reqPath + ".map";
+            const urlPath = req.path + ".map";
             res.send(code + `\n//# sourceMappingURL=${urlPath}`);
             return;
           }

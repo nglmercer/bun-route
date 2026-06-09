@@ -26,8 +26,18 @@ export interface GroupedEndpoints {
   paths: {
     path: string;
     method: string;
+    safeId: string;
     operation: OpenApiOperation;
   }[];
+}
+
+function makeSafeId(method: string, path: string): string {
+  const cleaned = path
+    .replace(/[\{\}'\"]/g, "_")
+    .replace(/\*\*/g, "wild-wild")
+    .replace(/\*/g, "wild")
+    .replace(/[^a-zA-Z0-9._-]/g, "_");
+  return `${method}-${cleaned}`;
 }
 
 const METHOD_ORDER = ["get", "post", "put", "patch", "delete", "options", "head"];
@@ -56,7 +66,7 @@ export function groupEndpoints(spec: OpenApiSpec): GroupedEndpoints[] {
     for (const [method, operation] of Object.entries(methods)) {
       const tag = extractTag(path, method);
       if (!groups[tag]) groups[tag] = [];
-      groups[tag].push({ path, method, operation });
+      groups[tag].push({ path, method, safeId: makeSafeId(method, path), operation });
     }
   }
 

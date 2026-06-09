@@ -1,4 +1,5 @@
-import { html } from "../html";
+import { h } from "preact";
+import { html } from "htm/preact";
 import type { GroupedEndpoints } from "../api/spec";
 
 interface SidebarProps {

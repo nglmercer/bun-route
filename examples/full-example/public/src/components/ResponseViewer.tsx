@@ -1,6 +1,7 @@
+import { h } from "preact";
+import { html } from "htm/preact";
 import { useState } from "preact/hooks";
 import { apiFetchRaw } from "../api/client";
-import { html } from "../html";
 
 function statusClass(status: number): string {
   if (status >= 200 && status < 300) return "status-ok";
@@ -27,7 +28,11 @@ export async function executeRequest(
   headers: string;
   body: string;
 }> {
-  const opts: { method: string; body?: string; headers?: Record<string, string> } = {
+  const opts: {
+    method: string;
+    body?: string;
+    headers?: Record<string, string>;
+  } = {
     method: method.toUpperCase(),
   };
   if (body) {
@@ -46,6 +51,14 @@ export async function executeRequest(
     headers: headersStr,
     body: result.body,
   };
+}
+
+export function sanitizeUrl(url: string): string {
+  try {
+    return decodeURIComponent(url).replace(/[\{\} ]/g, "");
+  } catch {
+    return url.replace(/[\{\} ]/g, "");
+  }
 }
 
 export function ResponseViewerInner({

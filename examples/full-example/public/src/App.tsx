@@ -2,7 +2,9 @@ import { fetchSpec, groupEndpoints } from "./api/spec";
 import type { OpenApiSpec } from "./api/spec";
 import { Sidebar } from "./components/Sidebar";
 import { EndpointCard } from "./components/EndpointCard";
-import { html, useEffect, useMemo, useState } from "./html";
+import { h } from "preact";
+import { useEffect, useMemo, useState } from "preact/hooks";
+import { html } from "htm/preact";
 
 type Theme = "dark" | "light";
 
