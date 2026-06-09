@@ -27,20 +27,19 @@ export async function generateDocs(
   return res.data.documentation || "";
 }
 
-export async function generateCurl(
+export async function generateSchema(
   path: string,
-  method: string,
-  params?: Record<string, string>
-): Promise<string> {
-  const res = await apiFetch<{ curl?: string; error?: string }>(
-    "/api/ai/curl",
+  method: string
+): Promise<Record<string, unknown>> {
+  const res = await apiFetch<{ schema?: Record<string, unknown>; error?: string }>(
+    "/api/ai/schema",
     {
       method: "POST",
-      body: { path, method, params },
+      body: { path, method },
     }
   );
   if (res.data.error) throw new Error(res.data.error);
-  return res.data.curl || "";
+  return res.data.schema || {};
 }
 
 export async function generateBody(

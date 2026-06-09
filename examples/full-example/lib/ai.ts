@@ -297,15 +297,10 @@ Locale: ${locale}`,
   );
 
   router.post(
-    "/api/ai/curl",
-    handlerName("aiCurl", async ({ req, res }) => {
+    "/api/ai/schema",
+    handlerName("aiSchema", async ({ req, res }) => {
       const body = req.parsedBody as
-        | {
-            path?: string;
-            method?: string;
-            params?: Record<string, string>;
-            locale?: string;
-          }
+        | { path?: string; method?: string; locale?: string }
         | undefined;
       if (!body?.path || !body?.method)
         return res.status(400).json({ error: "path and method are required" });
@@ -315,43 +310,78 @@ Locale: ${locale}`,
 
       const locale = getLocale(body, req.headers);
       const ep = getEndpointDetails(router, body.path, body.method);
-      const epJson = JSON.stringify(ep ?? { error: "not found" }, null, 2);
-      const paramsJson = body.params
-        ? JSON.stringify(body.params, null, 2)
-        : "None";
+      const epJson = JSON.stringify(
+        ep ?? { error: "endpoint not found", path: body.path, method: body.method },
+        null,
+        2,
+      );
+
+      const sourceInfo = ep?.source
+        ? `\nHandler source code:\n\`\`\`typescript\n${ep.source}\n\`\`\``
+        : "";
 
       const result = await callAI(
         config,
         [
           {
             role: "system",
-            content: `Generate a curl command for this API endpoint.
-Return ONLY the curl command.
+            content: `Generate an OpenAPI 3.0 compatible JSON schema for this API endpoint.
+Return ONLY valid JSON (no markdown, no explanation).
 
-Endpoint:
-${epJson}
+Endpoint data:
+${epJson}${sourceInfo}
 
-User-provided parameter values: ${paramsJson}
+Output structure:
+{
+  "openapi": "3.0.3",
+  "info": { "title": "...", "version": "1.0.0" },
+  "paths": {
+    "<path>": {
+      "<method>": {
+        "summary": "...",
+        "parameters": [...],
+        "requestBody": { ... },
+        "responses": { "200": { ... }, "400": { ... }, "500": { ... } }
+      }
+    }
+  }
+}
 
-Use base URL http://localhost:3000.
+Include:
+- path parameters with schema
+- query parameters with schema and defaults
+- request body schema if method is POST/PUT/PATCH
+- response schemas with example values
+- error response schemas (400, 500)
+
 Locale: ${locale}`,
           },
           {
             role: "user",
-            content: `Generate curl for ${body.method.toUpperCase()} ${body.path}`,
+            content: `Generate OpenAPI schema for ${body.method.toUpperCase()} ${body.path}`,
           },
         ],
         0.2,
       );
 
       if (!result.ok)
-        return res
-          .status(500)
-          .json({ error: `Curl generation failed: ${result.error}` });
+        return res.status(500).json({
+          error: `Schema generation failed: ${result.error}`,
+        });
+
+      let schema: unknown;
+      try {
+        schema = JSON.parse(result.text);
+      } catch {
+        schema = { raw: result.text, format: "text" };
+      }
+
       res.json({
-        curl:
-          result.text ||
-          `curl -X ${body.method.toUpperCase()} http://localhost:3000${body.path}`,
+        schema,
+        format: "openapi-3.0",
+        locale,
+        path: body.path,
+        method: body.method.toUpperCase(),
       });
     }),
   );

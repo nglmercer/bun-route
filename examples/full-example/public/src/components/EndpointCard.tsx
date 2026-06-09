@@ -69,12 +69,17 @@ export function EndpointCard({ path, method, safeId, operation, aiDocs, aiDocsLo
   const [askQuestion, setAskQuestion] = useState("");
 
   const handleCopy = async () => {
-    const sampleBody =
-      method === "post" || method === "put" || method === "patch"
-        ? `-d '${JSON.stringify({ key: "value" }, null, 2)}'`
-        : "";
-    const curl = `curl -X ${method.toUpperCase()} http://localhost:3000${path} ${sampleBody}`;
-    await navigator.clipboard.writeText(curl);
+    const hasReqBody = ["post", "put", "patch"].includes(method);
+    const bodyLine = hasReqBody
+      ? `\n  body: JSON.stringify({ key: "value" }),`
+      : "";
+    const fetchCode = `fetch("http://localhost:3000${path}", {
+  method: "${method.toUpperCase()}",
+  headers: { "Content-Type": "application/json" },${bodyLine}
+})
+  .then(res => res.json())
+  .then(data => console.log(data));`;
+    await navigator.clipboard.writeText(fetchCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -128,8 +133,8 @@ export function EndpointCard({ path, method, safeId, operation, aiDocs, aiDocsLo
           ${operation.summary && html`<span class="endpoint-summary-text">${operation.summary}</span>`}
         </div>
         <div class="endpoint-actions" onClick=${(e: Event) => e.stopPropagation()}>
-          <button class="btn btn-copy" onClick=${handleCopy} title="Copy as cURL">
-            ${copied ? "Copied!" : "cURL"}
+          <button class="btn btn-copy" onClick=${handleCopy} title="Copy as fetch">
+            ${copied ? "Copied!" : "Fetch"}
           </button>
           <button class="btn btn-ai" onClick=${() => openAiModal("docs")} title="Generate Documentation">
             Docs
