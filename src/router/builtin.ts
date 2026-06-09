@@ -547,6 +547,258 @@ export function devStatic(
     return routes
 }
 
+export interface ServeStaticOptions extends Partial<DevServerOptions> {
+    root: string
+    mount?: string
+    index?: string
+    spa?: boolean
+    maxDepth?: number
+    cacheControl?: string
+    dev?: boolean
+    indexFiles?: string[]
+    resolveExtensions?: string[]
+}
+
+function normalizeMount(mount: string): string {
+    if (!mount || mount === "/") return ""
+    let m = mount.startsWith("/") ? mount : "/" + mount
+    if (m.endsWith("/")) m = m.slice(0, -1)
+    return m
+}
+
+function splitSegments(relPath: string): string[] {
+    return relPath.split("/").filter(Boolean)
+}
+
+async function tryResolveFile(
+    basePath: string,
+    resolveExtensions: string[],
+    indexFiles: string[],
+): Promise<string | null> {
+    const file = Bun.file(basePath)
+    if (await file.exists()) {
+        const stat = statSync(basePath)
+        if (stat.isFile()) return basePath
+        if (stat.isDirectory()) {
+            for (const idx of indexFiles) {
+                const indexPath = join(basePath, idx)
+                if (await Bun.file(indexPath).exists()) return indexPath
+            }
+            return null
+        }
+    }
+    for (const ext of resolveExtensions) {
+        const pathWithExt = basePath + ext
+        if (await Bun.file(pathWithExt).exists()) return pathWithExt
+    }
+    return null
+}
+
+/**
+ * Unified static file serving. Replaces multiple `static()` calls and the
+ * separate `GET /` handler with a single mount rooted at `options.root`.
+ *
+ * Features:
+ * - Single mount point resolves to a single route table entry.
+ * - Automatic `index.html` resolution for `/` and any directory.
+ * - Optional SPA fallback: serves `index.html` for unknown paths under the mount.
+ * - Optional dev mode: transpiles `.ts`/`.tsx` and rewrites imports.
+ * - ETag-based 304 responses and configurable cache headers.
+ *
+ * @param routes The routes array to add to
+ * @param options ServeStatic options
+ * @returns The updated routes array
+ */
+export function serveStatic(
+    routes: EndpointRoute[],
+    options: ServeStaticOptions,
+): EndpointRoute[] {
+    const {
+        root,
+        mount = "/",
+        index = "index.html",
+        spa = false,
+        maxDepth = 10,
+        cacheControl = CACHE_CONTROL.PUBLIC_MAX_AGE_0,
+        dev = false,
+        indexFiles = ["index.html", "index.ts", "index.tsx", "index.js", "index.jsx"],
+        resolveExtensions = [".ts", ".tsx", ".js", ".jsx", ".mjs"],
+        importMap = {},
+        aliases = {},
+        define = {},
+        tsconfig,
+        autoImportJSX = true,
+        treeShaking = true,
+        minifyWhitespace = false,
+    } = options
+
+    if (!existsSync(root) || !statSync(root).isDirectory()) {
+        throw new Error("serveStatic root is not a directory: " + root)
+    }
+
+    const mountPrefix = normalizeMount(mount)
+    const devTranspilerTs = dev
+        ? new Bun.Transpiler({
+            loader: "ts",
+            target: "browser",
+            treeShaking,
+            deadCodeElimination: true,
+            trimUnusedImports: true,
+            minifyWhitespace,
+            define,
+            tsconfig,
+        })
+        : null
+    const devTranspilerTsx = dev
+        ? new Bun.Transpiler({
+            loader: "tsx",
+            target: "browser",
+            treeShaking,
+            deadCodeElimination: true,
+            trimUnusedImports: true,
+            minifyWhitespace,
+            autoImportJSX,
+            define,
+            tsconfig,
+        })
+        : null
+
+    function rewriteImports(code: string): string {
+        let result = code
+        for (const [from, to] of Object.entries(aliases)) {
+            const regex = new RegExp(`(from\\s+['"])${from}(/|['"])`, "g")
+            result = result.replace(regex, `$1${to}$2`)
+        }
+        for (const [from, to] of Object.entries(importMap)) {
+            const regex = new RegExp(`(from\\s+['"])${from}(/|['"])`, "g")
+            result = result.replace(regex, `$1${to}$2`)
+        }
+        return result
+    }
+
+    async function serveResolvedFile(
+        req: import("../types").Request,
+        res: import("../responseBuilder").ResponseBuilder,
+        resolvedPath: string,
+    ): Promise<void> {
+        try {
+            const file = Bun.file(resolvedPath)
+            const buffer = await file.arrayBuffer()
+            const etag = generateETag(buffer)
+            const ifNoneMatch = req.headers.get("if-none-match")
+
+            if (ifNoneMatch && ifNoneMatch === etag) {
+                res.status(304).send()
+                return
+            }
+
+            res.setHeader(HTTP_HEADERS.ETAG, etag)
+            res.setHeader(HTTP_HEADERS.CACHE_CONTROL, cacheControl)
+
+            const isTypeScript =
+                resolvedPath.endsWith(".ts") || resolvedPath.endsWith(".tsx")
+            const isCSS = resolvedPath.endsWith(".css")
+
+            if (isTypeScript) {
+                const code = await file.text()
+                const transpiled = dev
+                    ? await (resolvedPath.endsWith(".tsx")
+                        ? devTranspilerTsx!
+                        : devTranspilerTs!).transform(rewriteImports(code))
+                    : await transpileTypeScript(code, resolvedPath)
+                res.setHeader(HTTP_HEADERS.CONTENT_TYPE, CONTENT_TYPES.TEXT_JAVASCRIPT)
+                res.send(transpiled)
+            } else if (isCSS) {
+                const secFetchDest = req.headers.get("sec-fetch-dest")
+                const css = await file.text()
+                if (secFetchDest === "style") {
+                    res.setHeader(HTTP_HEADERS.CONTENT_TYPE, CONTENT_TYPES.TEXT_CSS)
+                    res.send(css)
+                } else {
+                    const escapedCSS = JSON.stringify(css)
+                    const jsModule = `const css = ${escapedCSS};\nconst style = document.createElement('style');\nstyle.textContent = css;\ndocument.head.appendChild(style);\nexport default css;\n`
+                    res.setHeader(HTTP_HEADERS.CONTENT_TYPE, CONTENT_TYPES.TEXT_JAVASCRIPT)
+                    res.send(jsModule)
+                }
+            } else {
+                res.setHeader(HTTP_HEADERS.CONTENT_TYPE, getContentType(resolvedPath))
+                res.send(buffer)
+            }
+        } catch (_) {
+            res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR, "Error while loading response content")
+        }
+    }
+
+    const serveStaticMiddleware: RequestMiddleware = (ctx) => {
+        const req = ctx.req
+        const res = ctx.res
+
+        const reqPath = req.path
+        if (mountPrefix && !reqPath.startsWith(mountPrefix + "/") && reqPath !== mountPrefix) {
+            return
+        }
+
+        const relPath = mountPrefix
+            ? reqPath === mountPrefix
+                ? "/"
+                : reqPath.slice(mountPrefix.length)
+            : reqPath
+
+        if (relPath.endsWith(PATH_CHARS.SLASH + index)) {
+            res.sendRedirect(
+                reqPath.slice(0, -(index.length + 1)) || mountPrefix || "/",
+                true,
+            )
+            return
+        }
+
+        const segments = splitSegments(relPath)
+        if (segments.length > maxDepth) {
+            return
+        }
+
+        let targetPath = join(root, ...segments)
+        if (relPath.endsWith(PATH_CHARS.SLASH) || relPath === "/") {
+            targetPath = join(targetPath, index)
+        }
+
+        return (async () => {
+            let resolvedPath = await tryResolveFile(targetPath, resolveExtensions, indexFiles)
+
+            if (!resolvedPath && (relPath === "/" || relPath.endsWith(PATH_CHARS.SLASH))) {
+                resolvedPath = await tryResolveFile(join(root, index), [], [])
+            }
+
+            if (!resolvedPath && spa) {
+                const fallback = join(root, index)
+                resolvedPath = (await Bun.file(fallback).exists()) ? fallback : null
+            }
+
+            if (!resolvedPath) {
+                res.status(HTTP_STATUS.NOT_FOUND)
+                return
+            }
+
+            await serveResolvedFile(req, res, resolvedPath)
+        })().catch(() => {
+            res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR, "Error while resolving file")
+        })
+    }
+
+    const routeMount = mountPrefix
+        ? mountPrefix + "/**"
+        : "/**"
+
+    routes.push({
+        splitPath: splitRoutePath(routeMount),
+        method: parseHttpMethods("GET"),
+        handler: serveStaticMiddleware,
+        middlewareName: "serveStatic",
+    })
+
+    return routes
+}
+
 /**
  * Register a cookie parsing middleware.
  * @param routes The routes array to add to

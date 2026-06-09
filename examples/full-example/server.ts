@@ -32,11 +32,20 @@ registerSlowRoutes(router);
 // Sub-router mounting
 router.mount("/api/admin", createAdminRouter());
 
-router.get("/", ({ res }) => {
-  return res.file(Bun.file(import.meta.dir + "/public/index.html"));
+router.serveStatic({
+  root: import.meta.dir + "/public",
+  index: "index.html",
 });
-router.static("/src/**", import.meta.dir + "/public/src");
-router.static("/theme.css", import.meta.dir + "/public/src/styles/");
+
+router.serveStatic({
+  root: import.meta.dir + "/public/src",
+  mount: "/src",
+  dev: true,
+});
+
+router.get("/theme.css", ({ res }) => {
+  return res.file(Bun.file(import.meta.dir + "/public/src/styles/theme.css"));
+});
 // Start server
 export const server = Bun.serve({
   fetch: router.handle,

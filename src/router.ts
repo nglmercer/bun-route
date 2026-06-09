@@ -41,10 +41,10 @@ import {
   ws as registerWs,
   redirect as registerRedirect,
   staticFiles as registerStatic,
-  devStatic as registerDevStatic,
+  serveStatic as registerServeStatic,
   cookies as registerCookies,
 } from "./router/builtin";
-import type { DevServerOptions } from "./router/builtin";
+import type { ServeStaticOptions } from "./router/builtin";
 import { cors as registerCors, type CorsOptions } from "./router/cors";
 import {
   bodyParser as registerBodyParser,
@@ -602,25 +602,25 @@ export class Router<T extends RouteCollection = []> {
   }
 
   /**
-   * Register a development-style static file serving route with TypeScript transpilation.
-   * Similar to Vite's dev server - automatically transpiles .ts/.tsx files to JavaScript
-   * and rewrites imports for browser compatibility.
+   * Register a unified static file serving mount rooted at `options.root`.
+   * Replaces multiple `static()` calls and the separate `GET /` index handler
+   * with a single route entry.
    *
-   * @param path The path pattern to serve (e.g., "/src/**")
-   * @param options Dev server options including target directory, aliases, and import maps
+   * @param options ServeStatic options
    * @returns The router
    *
    * @example
    * ```ts
-   * router.dev("/src/**", {
-   *   targetDir: "./public/src",
-   *   aliases: { "@": "/src" },
-   *   importMap: { "lodash": "https://esm.sh/lodash" }
+   * router.serveStatic({
+   *   root: import.meta.dir + "/public",
+   *   index: "index.html",
+   *   spa: true,
+   *   dev: true, // transpile .ts/.tsx and rewrite imports
    * })
    * ```
    */
-  dev(path: string, options: DevServerOptions): Router<T> {
-    registerDevStatic(this.routes, path, options);
+  serveStatic(options: ServeStaticOptions): Router<T> {
+    registerServeStatic(this.routes, options);
     return this;
   }
 

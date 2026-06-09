@@ -17,4 +17,4 @@ export * from "./router/param";
 export * from "./router/handlerName";
 export * from "./typedRouter";
 export * from "./testing";
-export type { DevServerOptions } from "./router/builtin";
+export type { ServeStaticOptions } from "./router/builtin";
