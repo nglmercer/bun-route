@@ -12,10 +12,6 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, " ");
 }
 
-function methodClass(method: string): string {
-  return `method-badge method-${method}`;
-}
-
 export function Sidebar({ groups, activeId, onNavigate }: SidebarProps) {
   return html`
     <aside class="sidebar" id="sidebar">
@@ -30,33 +26,31 @@ export function Sidebar({ groups, activeId, onNavigate }: SidebarProps) {
         </div>
       </div>
       <nav class="sidebar-nav">
-        ${groups.map((group) =>
-          html`
+        ${groups.map(
+          (group) => html`
             <div class="sidebar-section" key=${group.tag}>
               <h3 class="sidebar-section-title">${capitalize(group.tag)}</h3>
               <ul class="sidebar-list">
-                ${group.paths.map((item) => {
-                  const id = `${item.method}-${item.path}`;
-                  return html`
+                ${group.paths.map(
+                  (item) => html`
                     <li
-                      class=${`sidebar-item ${activeId === id ? "active" : ""}`}
-                      data-id=${id}
-                      key=${id}
+                      class=${`sidebar-item ${activeId === item.safeId ? "active" : ""}`}
+                      key=${item.safeId}
                     >
                       <a
-                        href="#${id}"
+                        href=${`#${item.safeId}`}
                         class="sidebar-link"
                         onClick=${(e: MouseEvent) => {
                           e.preventDefault();
-                          onNavigate(id);
+                          onNavigate(item.safeId);
                         }}
                       >
-                        <span class=${methodClass(item.method)}>${item.method.toUpperCase()}</span>
+                        <span class=${`method-badge method-${item.method}`}>${item.method.toUpperCase()}</span>
                         <span class="sidebar-path"><code>${item.path}</code></span>
                       </a>
                     </li>
-                  `;
-                })}
+                  `,
+                )}
               </ul>
             </div>
           `,

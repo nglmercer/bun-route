@@ -1,22 +1,7 @@
 import { h } from "preact";
+import { useRef, useEffect, useState } from "preact/hooks";
 import { html } from "htm/preact";
-import { useState } from "preact/hooks";
 import { apiFetchRaw } from "../api/client";
-
-function statusClass(status: number): string {
-  if (status >= 200 && status < 300) return "status-ok";
-  if (status >= 300 && status < 400) return "status-redirect";
-  if (status >= 400 && status < 500) return "status-client-err";
-  return "status-server-err";
-}
-
-function formatJson(str: string): string {
-  try {
-    return JSON.stringify(JSON.parse(str), null, 2);
-  } catch {
-    return str;
-  }
-}
 
 export async function executeRequest(
   method: string,
@@ -28,23 +13,17 @@ export async function executeRequest(
   headers: string;
   body: string;
 }> {
-  const opts: {
-    method: string;
-    body?: string;
-    headers?: Record<string, string>;
-  } = {
+  const opts: { method: string; body?: string; headers?: Record<string, string> } = {
     method: method.toUpperCase(),
   };
   if (body) {
     opts.body = body;
     opts.headers = { "Content-Type": "application/json" };
   }
-
   const result = await apiFetchRaw(url, opts);
   const headersStr = [...result.headers.entries()]
     .map(([k, v]) => `${k}: ${v}`)
     .join("\n");
-
   return {
     status: result.status,
     statusText: result.statusText,
@@ -53,15 +32,32 @@ export async function executeRequest(
   };
 }
 
-export function sanitizeUrl(url: string): string {
+function statusClass(status: number): string {
+  if (status >= 200 && status < 300) return "status-ok";
+  if (status >= 300 && status < 400) return "status-redirect";
+  if (status >= 400 && status < 500) return "status-client-err";
+  return "status-server-err";
+}
+
+function formatBody(raw: string): string {
   try {
-    return decodeURIComponent(url).replace(/[\{\} ]/g, "");
+    return JSON.stringify(JSON.parse(raw), null, 2);
   } catch {
-    return url.replace(/[\{\} ]/g, "");
+    return raw;
   }
 }
 
-export function ResponseViewerInner({
+function SafePre({ text, className }: { text: string; className?: string }) {
+  const ref = useRef<HTMLPreElement>(null);
+  useEffect(() => {
+    if (ref.current) {
+      ref.current.textContent = text;
+    }
+  }, [text]);
+  return h("pre", { ref, class: className });
+}
+
+export function ResponseViewer({
   status,
   statusText,
   headers,
@@ -82,8 +78,10 @@ export function ResponseViewerInner({
     setTimeout(() => setCopied(false), 1500);
   };
 
+  const formattedBody = formatBody(body);
+
   return html`
-    <>
+    <div>
       <div class=${`response-header ${cls}`}>
         <span class="response-status">${status} ${statusText}</span>
         <button class="btn btn-copy-res" onClick=${handleCopy}>
@@ -93,12 +91,12 @@ export function ResponseViewerInner({
       <div class="response-headers">
         <details>
           <summary>Response Headers</summary>
-          <pre>${headers}</pre>
+          <${SafePre} text=${headers} />
         </details>
       </div>
       <div class="response-body">
-        <pre><code>${formatJson(body)}</code></pre>
+        <${SafePre} text=${formattedBody} />
       </div>
-    </>
+    </div>
   `;
 }

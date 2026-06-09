@@ -3,7 +3,8 @@ import { useState } from "preact/hooks";
 import { html } from "htm/preact";
 import type { OpenApiParameter } from "../api/spec";
 import { executeRequest } from "./ResponseViewer";
-import { ResponseViewerInner } from "./ResponseViewer";
+import { ResponseViewer } from "./ResponseViewer";
+
 interface TryItProps {
   path: string;
   method: string;
@@ -23,16 +24,18 @@ function defaultForParam(p: OpenApiParameter): string {
 export function TryIt({ path, method, params }: TryItProps) {
   const pathParams = params?.filter((p) => p.in === "path") ?? [];
   const queryParams = params?.filter((p) => p.in === "query") ?? [];
-  const initialPathValues: Record<string, string> = {};
-  for (const p of pathParams) initialPathValues[p.name] = defaultForParam(p);
-  const initialQueryValues: Record<string, string> = {};
-  for (const p of queryParams) initialQueryValues[p.name] = defaultForParam(p);
 
-  const [pathValues, setPathValues] =
-    useState<Record<string, string>>(initialPathValues);
-  const [queryValues, setQueryValues] =
-    useState<Record<string, string>>(initialQueryValues);
-  const [body, setBody] = useState<string>("{}");
+  const [pathValues, setPathValues] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const p of pathParams) init[p.name] = defaultForParam(p);
+    return init;
+  });
+  const [queryValues, setQueryValues] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const p of queryParams) init[p.name] = defaultForParam(p);
+    return init;
+  });
+  const [body, setBody] = useState("{}");
   const [response, setResponse] = useState<{
     status: number;
     statusText: string;
@@ -54,12 +57,8 @@ export function TryIt({ path, method, params }: TryItProps) {
       const value = encodeURIComponent(pathValues[p.name] || p.name || "");
       url = url.replace(`:${p.name}`, value);
       url = url.replace(`{${p.name}}`, value);
-      if (url.includes("**")) {
-        url = url.replace("**", value);
-      }
-      if (url.includes("*")) {
-        url = url.replace("*", value);
-      }
+      if (url.includes("**")) url = url.replace("**", value);
+      if (url.includes("*")) url = url.replace("*", value);
     }
     const queryParts: string[] = [];
     for (const p of queryParams) {
@@ -79,8 +78,6 @@ export function TryIt({ path, method, params }: TryItProps) {
       const url = buildUrl();
       const requestBody = hasBody(method) ? body : undefined;
       const result = await executeRequest(method, url, requestBody);
-      console.log(result);
-      return;
       setResponse(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -93,15 +90,9 @@ export function TryIt({ path, method, params }: TryItProps) {
     <div class="tryit-panel">
       <div class="tryit-request">
         <div class="tryit-url-bar">
-          <span class=${`method-badge method-${method}`}
-            >${method.toUpperCase()}</span
-          >
+          <span class=${`method-badge method-${method}`}>${method.toUpperCase()}</span>
           <code class="tryit-url">${path}</code>
-          <button
-            class="btn btn-send"
-            onClick=${handleSend}
-            disabled=${sending}
-          >
+          <button class="btn btn-send" onClick=${handleSend} disabled=${sending}>
             ${sending ? "Sending..." : "Send"}
           </button>
         </div>
@@ -122,10 +113,7 @@ export function TryIt({ path, method, params }: TryItProps) {
                         placeholder=${p.schema?.type || "string"}
                         value=${pathValues[p.name] ?? ""}
                         onInput=${(e: Event) =>
-                          updatePath(
-                            p.name,
-                            (e.currentTarget as HTMLInputElement).value,
-                          )}
+                          updatePath(p.name, (e.currentTarget as HTMLInputElement).value)}
                       />
                     </div>
                   `,
@@ -133,6 +121,7 @@ export function TryIt({ path, method, params }: TryItProps) {
               </div>
             `
           : null}
+
         ${queryParams.length > 0
           ? html`
               <div class="tryit-section">
@@ -140,40 +129,31 @@ export function TryIt({ path, method, params }: TryItProps) {
                 ${queryParams.map(
                   (p) => html`
                     <div class="tryit-field" key=${p.name}>
-                      <label for=${`param-${p.name}`}>
+                      <label for=${`qparam-${p.name}`}>
                         <code>${p.name}</code>${p.required ? " *" : ""}
                       </label>
                       ${p.schema?.enum
                         ? html`
                             <select
-                              id=${`param-${p.name}`}
+                              id=${`qparam-${p.name}`}
                               value=${queryValues[p.name] ?? ""}
                               onChange=${(e: Event) =>
-                                updateQuery(
-                                  p.name,
-                                  (e.currentTarget as HTMLSelectElement).value,
-                                )}
+                                updateQuery(p.name, (e.currentTarget as HTMLSelectElement).value)}
                             >
                               <option value="">-- select --</option>
                               ${p.schema.enum.map(
-                                (v) =>
-                                  html`<option value=${v} key=${v}>
-                                    ${v}
-                                  </option>`,
+                                (v) => html`<option value=${v} key=${v}>${v}</option>`,
                               )}
                             </select>
                           `
                         : html`
                             <input
                               type="text"
-                              id=${`param-${p.name}`}
+                              id=${`qparam-${p.name}`}
                               placeholder=${p.schema?.type || "string"}
                               value=${queryValues[p.name] ?? ""}
                               onInput=${(e: Event) =>
-                                updateQuery(
-                                  p.name,
-                                  (e.currentTarget as HTMLInputElement).value,
-                                )}
+                                updateQuery(p.name, (e.currentTarget as HTMLInputElement).value)}
                             />
                           `}
                     </div>
@@ -182,18 +162,17 @@ export function TryIt({ path, method, params }: TryItProps) {
               </div>
             `
           : null}
+
         ${hasBody(method)
           ? html`
               <div class="tryit-section">
                 <h4>Request Body</h4>
                 <div class="tryit-body-editor">
                   <textarea
-                    id="tryit-body"
                     placeholder='{"key": "value"}'
                     rows=${6}
                     value=${body}
-                    onInput=${(e: Event) =>
-                      setBody((e.currentTarget as HTMLTextAreaElement).value)}
+                    onInput=${(e: Event) => setBody((e.currentTarget as HTMLTextAreaElement).value)}
                   />
                 </div>
               </div>
@@ -201,7 +180,7 @@ export function TryIt({ path, method, params }: TryItProps) {
           : null}
       </div>
 
-      <div class="tryit-response" id="tryit-response">
+      <div class="tryit-response">
         ${error
           ? html`
               <div class="response-header status-server-err">
@@ -212,15 +191,13 @@ export function TryIt({ path, method, params }: TryItProps) {
               </div>
             `
           : response
-            ? html`
-                <${ResponseViewerInner}
-                  status=${response.status}
-                  statusText=${response.statusText}
-                  headers=${response.headers}
-                  body=${response.body}
-                  requestKey=${requestKey}
-                />
-              `
+            ? html`<${ResponseViewer}
+                status=${response.status}
+                statusText=${response.statusText}
+                headers=${response.headers}
+                body=${response.body}
+                requestKey=${requestKey}
+              />`
             : null}
       </div>
     </div>
