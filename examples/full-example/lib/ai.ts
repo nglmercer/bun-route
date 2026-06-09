@@ -1,7 +1,10 @@
 import { handlerName } from "../../../src/index";
 import type { Router } from "../../../src/index";
 import type { RouteDefinition } from "../../../src/index";
-import { generateText } from "xsai";
+import type {
+  AIConfig, AIConfigSuccess, AIReturn, AIError,
+} from "./ai-shared";
+import { checkAIConfig, callAI, getLocale } from "./ai-shared";
 
 /* ── Types ────────────────────────────────────────────── */
 
@@ -25,32 +28,6 @@ interface RichEndpointInfo {
     avgTimeMs: number;
   };
   source?: string;
-}
-
-interface AIConfigError {
-  ok: false;
-  error: string;
-}
-
-interface AIConfigSuccess {
-  ok: true;
-  apiKey: string;
-  baseURL: string;
-  model: string;
-}
-
-type AIConfig = AIConfigError | AIConfigSuccess;
-
-interface AIReturn {
-  ok: true;
-  text: string;
-  finishReason?: string;
-  usage?: unknown;
-}
-
-interface AIError {
-  ok: false;
-  error: string;
 }
 
 /* ── Helpers ──────────────────────────────────────────── */
@@ -82,52 +59,6 @@ function routeDefToEndpointInfo(def: RouteDefinition): RichEndpointInfo {
       : undefined,
     source: def.source,
   };
-}
-
-function getLocale(
-  body: { locale?: string } | undefined,
-  headers?: Headers,
-): string {
-  return body?.locale || headers?.get("accept-language")?.split(",")[0] || "en";
-}
-
-function checkAIConfig(): AIConfig {
-  const apiKey = process.env.AI_API_KEY;
-  if (!apiKey)
-    return { ok: false, error: "AI_API_KEY environment variable is not set" };
-  return {
-    ok: true,
-    apiKey,
-    baseURL: process.env.AI_BASE_URL || "https://api.openai.com/v1/",
-    model: process.env.AI_MODEL || "gpt-4o-mini",
-  };
-}
-
-async function callAI(
-  config: AIConfigSuccess,
-  messages: Array<{ role: "user" | "system"; content: string }>,
-  temperature: number,
-): Promise<AIReturn | AIError> {
-  try {
-    const result = await generateText({
-      apiKey: config.apiKey,
-      baseURL: config.baseURL,
-      model: config.model,
-      messages,
-      temperature,
-    });
-    return {
-      ok: true,
-      text: result.text || "",
-      finishReason: result.finishReason,
-      usage: result.usage,
-    };
-  } catch (err) {
-    return {
-      ok: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
-  }
 }
 
 function findDef(

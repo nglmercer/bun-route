@@ -1,7 +1,10 @@
 import { handlerName } from "../../../src/index";
 import type { Router, RouteDefinition } from "../../../src/index";
+import { checkAIConfig, callAI } from "./ai-shared";
 
-function toOpenApiSpec(defs: RouteDefinition[]) {
+let cachedOpenApiSpec: unknown | null = null;
+
+function buildFallbackSpec(defs: RouteDefinition[]) {
   const paths: Record<string, Record<string, unknown>> = {};
   for (const def of defs) {
     if (!def.method || def.method === "ALL" || def.middlewareName) continue;
@@ -9,19 +12,13 @@ function toOpenApiSpec(defs: RouteDefinition[]) {
     if (!paths[def.path]) paths[def.path] = {};
     const params: Record<string, unknown>[] = [];
     for (const p of def.pathParams) {
-      params.push({
-        name: p.name,
-        in: "path",
-        required: true,
-        schema: { type: "string" },
-      });
+      params.push({ name: p.name, in: "path", required: true, schema: { type: "string" } });
     }
     for (const q of def.queryParams || []) {
       params.push({
-        name: q.name,
-        in: "query",
+        name: q.name, in: "query",
         required: q.required ?? false,
-        description: q.description,
+        ...(q.description ? { description: q.description } : {}),
         schema: {
           type: q.type || "string",
           ...(q.default !== undefined ? { default: q.default } : {}),
@@ -30,21 +27,79 @@ function toOpenApiSpec(defs: RouteDefinition[]) {
       });
     }
     paths[def.path][method] = {
-      summary: `${def.method} ${def.path}`,
-      description: `Handler: ${def.handlerName}`,
       parameters: params.length > 0 ? params : undefined,
-      responses: {
-        "200": { description: "Successful response" },
-        "400": { description: "Bad request" },
-        "500": { description: "Internal server error" },
-      },
     };
   }
-  return {
-    openapi: "3.0.3",
-    info: { title: "router-bun full example", version: "1.0.0" },
-    paths,
-  };
+  return { openapi: "3.0.3", info: { title: "router-bun full example", version: "1.0.0" }, paths };
+}
+
+async function generateOpenApiSpecWithAI(defs: RouteDefinition[]): Promise<unknown | null> {
+  const config = checkAIConfig();
+  if (!config.ok) return null;
+
+  const endpointsJson = JSON.stringify(
+    defs
+      .filter((d) => d.method && d.method !== "ALL" && !d.middlewareName)
+      .map((d) => ({
+        method: d.method,
+        path: d.path,
+        pathParams: d.pathParams,
+        queryParams: d.queryParams,
+      })),
+    null,
+    2,
+  );
+
+  const result = await callAI(
+    config,
+    [
+      {
+        role: "system",
+        content: `Generate a complete OpenAPI 3.0.3 spec from the endpoint list below.
+Return ONLY valid JSON. Add realistic summaries, descriptions, response schemas with examples.
+Enrich parameters with descriptions where possible.
+
+The output paths object must cover every endpoint. Each endpoint path+method must appear.
+Use this structure:
+{
+  "openapi": "3.0.3",
+  "info": { "title": "router-bun API", "version": "1.0.0" },
+  "paths": {
+    "/path": {
+      "get": {
+        "summary": "...",
+        "description": "...",
+        "parameters": [...],
+        "responses": {
+          "200": { "description": "...", "content": { "application/json": { "schema": { ... } } } },
+          "400": { "description": "Bad request" },
+          "500": { "description": "Internal server error" }
+        }
+      }
+    }
+  }
+}`,
+      },
+      {
+        role: "user",
+        content: `Generate an OpenAPI spec for these endpoints:\n${endpointsJson}`,
+      },
+    ],
+    0.2,
+  );
+
+  if (!result.ok) return null;
+  try {
+    return JSON.parse(result.text);
+  } catch {
+    return null;
+  }
+}
+
+export async function cacheOpenApiSpec(router: Router): Promise<void> {
+  const defs = router.getRouteDefinitions();
+  const aiSpec = await generateOpenApiSpecWithAI(defs);
+  cachedOpenApiSpec = aiSpec ?? buildFallbackSpec(defs);
 }
 
 export function registerInfoRoutes(router: Router): void {
@@ -72,8 +127,11 @@ export function registerInfoRoutes(router: Router): void {
   router.get(
     "/api/openapi",
     handlerName("getOpenApi", async ({ res }) => {
+      if (cachedOpenApiSpec) return res.json(cachedOpenApiSpec);
       const defs = router.getRouteDefinitions();
-      res.json(toOpenApiSpec(defs));
+      const aiSpec = await generateOpenApiSpecWithAI(defs);
+      cachedOpenApiSpec = aiSpec ?? buildFallbackSpec(defs);
+      res.json(cachedOpenApiSpec);
     }),
   );
 

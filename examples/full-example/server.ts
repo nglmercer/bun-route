@@ -7,7 +7,7 @@ import { registerContextRoutes } from "./lib/context";
 import { registerUploadRoutes } from "./lib/upload";
 import { registerEventRoutes } from "./lib/events";
 import { registerWebSocket } from "./lib/websocket";
-import { registerInfoRoutes } from "./lib/info";
+import { registerInfoRoutes, cacheOpenApiSpec } from "./lib/info";
 import { registerV1Routes } from "./lib/v1";
 import { registerSlowRoutes } from "./lib/slow";
 import { createAdminRouter } from "./lib/admin";
@@ -48,6 +48,10 @@ router.serveStatic({
 router.get("/theme.css", ({ res }) => {
   return res.file(Bun.file(import.meta.dir + "/public/src/styles/theme.css"));
 });
+
+// Pre-generate OpenAPI spec on startup (AI if configured, otherwise static)
+cacheOpenApiSpec(router).catch(() => {});
+
 // Start server
 export const server = Bun.serve({
   fetch: router.handle,

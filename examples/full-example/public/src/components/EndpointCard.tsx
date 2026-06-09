@@ -1,11 +1,12 @@
 import { h } from "preact";
-import { useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "htm/preact";
 import type { OpenApiOperation, OpenApiParameter } from "../api/spec";
 import { TryIt } from "./TryIt";
 import { askAI, generateDocs } from "../api/ai";
 
 const aiDocsCache = new Map<string, string>();
+const inflightFetches = new Map<string, Promise<string>>();
 
 interface EndpointCardProps {
   path: string;
@@ -18,8 +19,14 @@ function ExpandArrow({ expanded }: { expanded: boolean }) {
   return html`
     <svg
       class=${`endpoint-expand-icon ${expanded ? "expanded" : ""}`}
-      width="16" height="16" viewBox="0 0 24 24" fill="none"
-      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
     >
       <polyline points="6 9 12 15 18 9" />
     </svg>
@@ -45,8 +52,18 @@ function ParametersTable({ params }: { params: OpenApiParameter[] }) {
               <tr key=${`${p.in}-${p.name}`}>
                 <td><code>${p.name}</code></td>
                 <td>${p.in}</td>
-                <td>${p.schema?.type || "string"}${p.schema?.enum ? html`<span class="param-enum">${p.schema.enum.join(", ")}</span>` : ""}</td>
-                <td>${p.required ? html`<span class="required-yes">Yes</span>` : "No"}</td>
+                <td>
+                  ${p.schema?.type || "string"}${p.schema?.enum
+                    ? html`<span class="param-enum"
+                        >${p.schema.enum.join(", ")}</span
+                      >`
+                    : ""}
+                </td>
+                <td>
+                  ${p.required
+                    ? html`<span class="required-yes">Yes</span>`
+                    : "No"}
+                </td>
               </tr>
             `,
           )}
@@ -56,10 +73,24 @@ function ParametersTable({ params }: { params: OpenApiParameter[] }) {
   `;
 }
 
-export function EndpointCard({ path, method, safeId, operation }: EndpointCardProps) {
+export function EndpointCard({
+  path,
+  method,
+  safeId,
+  operation,
+}: EndpointCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [aiModal, setAiModal] = useState<{ open: boolean; type: "ask" | "docs" | null; loading: boolean; content: string; error: string | null }>({
+  const [inlineDocs, setInlineDocs] = useState<string | null>(null);
+  const [inlineDocsLoading, setInlineDocsLoading] = useState(false);
+  const fetchedRef = useRef(false);
+  const [aiModal, setAiModal] = useState<{
+    open: boolean;
+    type: "ask" | "docs" | null;
+    loading: boolean;
+    content: string;
+    error: string | null;
+  }>({
     open: false,
     type: null,
     loading: false,
@@ -67,6 +98,39 @@ export function EndpointCard({ path, method, safeId, operation }: EndpointCardPr
     error: null,
   });
   const [askQuestion, setAskQuestion] = useState("");
+
+  const cacheKey = `${method}:${path}`;
+
+  useEffect(() => {
+    if (!expanded || fetchedRef.current) return;
+    fetchedRef.current = true;
+    const cached = aiDocsCache.get(cacheKey);
+    if (cached) {
+      setInlineDocs(cached);
+      return;
+    }
+    setInlineDocsLoading(true);
+    let cancelled = false;
+    const fetch = async () => {
+      let pending = inflightFetches.get(cacheKey);
+      if (!pending) {
+        pending = generateDocs(path, method).then((d) => {
+          aiDocsCache.set(cacheKey, d);
+          return d;
+        });
+        inflightFetches.set(cacheKey, pending);
+      }
+      const docs = await pending;
+      if (!cancelled) {
+        setInlineDocs(docs);
+        setInlineDocsLoading(false);
+      }
+    };
+    fetch();
+    return () => {
+      cancelled = true;
+    };
+  }, [expanded, path, method, cacheKey]);
 
   const handleCopy = async () => {
     const hasReqBody = ["post", "put", "patch"].includes(method);
@@ -90,7 +154,13 @@ export function EndpointCard({ path, method, safeId, operation }: EndpointCardPr
   };
 
   const closeAiModal = () => {
-    setAiModal({ open: false, type: null, loading: false, content: "", error: null });
+    setAiModal({
+      open: false,
+      type: null,
+      loading: false,
+      content: "",
+      error: null,
+    });
     setAskQuestion("");
   };
 
@@ -109,44 +179,33 @@ export function EndpointCard({ path, method, safeId, operation }: EndpointCardPr
       }));
     }
   };
-
-  const handleGenerateDocs = async () => {
-    const cacheKey = `${method}:${path}`;
-    const cached = aiDocsCache.get(cacheKey);
-    if (cached) {
-      setAiModal((prev) => ({ ...prev, content: cached }));
-      return;
-    }
-    setAiModal((prev) => ({ ...prev, loading: true, error: null }));
-    try {
-      const docs = await generateDocs(path, method);
-      aiDocsCache.set(cacheKey, docs);
-      setAiModal((prev) => ({ ...prev, loading: false, content: docs }));
-    } catch (err) {
-      setAiModal((prev) => ({
-        ...prev,
-        loading: false,
-        error: err instanceof Error ? err.message : "Failed to generate docs",
-      }));
-    }
-  };
-
   return html`
     <div class=${`endpoint-card ${expanded ? "is-expanded" : ""}`} id=${safeId}>
       <div class="endpoint-header" onClick=${() => setExpanded((v) => !v)}>
         <div class="endpoint-title">
-          <span class=${`method-badge method-${method}`}>${method.toUpperCase()}</span>
+          <span class=${`method-badge method-${method}`}
+            >${method.toUpperCase()}</span
+          >
           <span class="endpoint-path">${path}</span>
-          ${operation.summary && html`<span class="endpoint-summary-text">${operation.summary}</span>`}
+          ${operation.summary &&
+          html`<span class="endpoint-summary-text">${operation.summary}</span>`}
         </div>
-        <div class="endpoint-actions" onClick=${(e: Event) => e.stopPropagation()}>
-          <button class="btn btn-copy" onClick=${handleCopy} title="Copy as fetch">
+        <div
+          class="endpoint-actions"
+          onClick=${(e: Event) => e.stopPropagation()}
+        >
+          <button
+            class="btn btn-copy"
+            onClick=${handleCopy}
+            title="Copy as fetch"
+          >
             ${copied ? "Copied!" : "Fetch"}
           </button>
-          <button class="btn btn-ai" onClick=${() => openAiModal("docs")} title="Generate Documentation">
-            Docs
-          </button>
-          <button class="btn btn-ai" onClick=${() => openAiModal("ask")} title="Ask AI about this endpoint">
+          <button
+            class="btn btn-ai"
+            onClick=${() => openAiModal("ask")}
+            title="Ask AI about this endpoint"
+          >
             Ask AI
           </button>
           <${ExpandArrow} expanded=${expanded} />
@@ -154,8 +213,11 @@ export function EndpointCard({ path, method, safeId, operation }: EndpointCardPr
       </div>
       <div class=${`endpoint-body ${expanded ? "expanded" : ""}`}>
         <div class="endpoint-body-inner">
-          ${operation.description ? html`<p class="endpoint-description">${operation.description}</p>` : null}
-          ${operation.responses && html`
+          ${operation.description
+            ? html`<p class="endpoint-description">${operation.description}</p>`
+            : null}
+          ${operation.responses &&
+          html`
             <div class="ai-docs-section">
               <div class="ai-docs-header">
                 <span class="ai-docs-badge">AI</span>
@@ -169,58 +231,36 @@ export function EndpointCard({ path, method, safeId, operation }: EndpointCardPr
           ${operation.parameters && operation.parameters.length > 0
             ? html`<${ParametersTable} params=${operation.parameters} />`
             : null}
+          ${expanded && inlineDocs
+            ? html`
+                <div class="ai-docs-section">
+                  <div class="ai-docs-header">
+                    <span class="ai-docs-badge">AI</span>
+                    <span>Documentation</span>
+                  </div>
+                  <div class="ai-docs-content">
+                    <pre>${inlineDocs}</pre>
+                  </div>
+                </div>
+              `
+            : expanded && inlineDocsLoading
+              ? html`<div class="ai-docs-loading">
+                  Generating AI documentation...
+                </div>`
+              : null}
           ${expanded
             ? html`
                 <div class="tryit-container">
-                  <${TryIt} path=${path} method=${method} params=${operation.parameters} />
+                  <${TryIt}
+                    path=${path}
+                    method=${method}
+                    params=${operation.parameters}
+                  />
                 </div>
               `
             : null}
         </div>
       </div>
-
-      ${aiModal.open
-        ? html`
-            <div class="ai-modal-overlay" onClick=${closeAiModal}>
-              <div class="ai-modal" onClick=${(e: Event) => e.stopPropagation()}>
-                <div class="ai-modal-header">
-                  <h3>${aiModal.type === "ask" ? "Ask AI" : "Endpoint Documentation"}</h3>
-                  <button class="ai-modal-close" onClick=${closeAiModal}>×</button>
-                </div>
-                <div class="ai-modal-body">
-                  ${aiModal.type === "ask" && !aiModal.content && !aiModal.loading
-                    ? html`
-                        <div class="ai-ask-form">
-                          <textarea
-                            placeholder="Ask a question about this endpoint..."
-                            rows=${3}
-                            value=${askQuestion}
-                            onInput=${(e: Event) => setAskQuestion((e.currentTarget as HTMLTextAreaElement).value)}
-                          />
-                          <button
-                            class="btn btn-ai-send"
-                            onClick=${handleAskAI}
-                            disabled=${!askQuestion.trim()}
-                          >
-                            Ask
-                          </button>
-                        </div>
-                      `
-                    : null}
-                  ${aiModal.loading
-                    ? html`<div class="ai-loading">Generating response...</div>`
-                    : null}
-                  ${aiModal.error
-                    ? html`<div class="ai-error">${aiModal.error}</div>`
-                    : null}
-                  ${aiModal.content
-                    ? html`<div class="ai-content"><pre>${aiModal.content}</pre></div>`
-                    : null}
-                </div>
-              </div>
-            </div>
-          `
-        : null}
     </div>
   `;
 }
