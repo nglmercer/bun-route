@@ -1,6 +1,7 @@
 import { h } from "preact";
 import { html } from "htm/preact";
 import type { GroupedEndpoints } from "../api/spec";
+import { useI18n } from "../i18n/context";
 
 interface SidebarProps {
   groups: GroupedEndpoints[];
@@ -19,33 +20,6 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, " ");
 }
 
-function ChevronIcon({ expanded }: { expanded: boolean }) {
-  return html`
-    <svg
-      class=${`sidebar-chevron ${expanded ? "expanded" : ""}`}
-      width="12"
-      height="12"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    >
-      <polyline points="9 18 15 12 9 6" />
-    </svg>
-  `;
-}
-
-function SearchIcon() {
-  return html`
-    <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  `;
-}
-
 export function Sidebar({
   groups,
   activeId,
@@ -58,6 +32,7 @@ export function Sidebar({
   expandedGroups,
   onToggleGroup,
 }: SidebarProps) {
+  const { t, language, setLanguage } = useI18n();
   const hasResults = groups.some((g) => g.paths.length > 0);
 
   return html`
@@ -71,13 +46,30 @@ export function Sidebar({
           </svg>
           <span>API Docs</span>
         </div>
+        <div class="language-switcher">
+          <button
+            class=${`lang-btn ${language === "en" ? "active" : ""}`}
+            onClick=${() => setLanguage("en")}
+          >
+            EN
+          </button>
+          <button
+            class=${`lang-btn ${language === "es" ? "active" : ""}`}
+            onClick=${() => setLanguage("es")}
+          >
+            ES
+          </button>
+        </div>
       </div>
       <div class="search-wrapper">
-        <${SearchIcon} />
+        <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
         <input
           class="search-input"
           type="text"
-          placeholder=${`Search ${totalEndpoints} endpoints...`}
+          placeholder=${t.sidebar.searchPlaceholder(totalEndpoints)}
           value=${search}
           onInput=${(e: Event) => onSearch((e.currentTarget as HTMLInputElement).value)}
         />
@@ -90,11 +82,11 @@ export function Sidebar({
         `}
       </div>
       <div class="sidebar-meta">
-        <span class="sidebar-meta-text">${filteredCount} of ${totalEndpoints} endpoints</span>
+        <span class="sidebar-meta-text">${t.sidebar.endpointsCount(filteredCount, totalEndpoints)}</span>
       </div>
       <nav class="sidebar-nav">
         ${!hasResults
-          ? html`<div class="sidebar-no-results">No endpoints found</div>`
+          ? html`<div class="sidebar-no-results">${t.sidebar.noResults}</div>`
           : groups.map(
               (group) => {
                 const isExpanded = expandedGroups.size === 0 || expandedGroups.has(group.tag);
@@ -104,7 +96,19 @@ export function Sidebar({
                       class="sidebar-section-header"
                       onClick=${() => onToggleGroup(group.tag)}
                     >
-                      <${ChevronIcon} expanded=${isExpanded} />
+                      <svg
+                        class=${`sidebar-chevron ${isExpanded ? "expanded" : ""}`}
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="9 18 15 12 9 6" />
+                      </svg>
                       <span class="sidebar-section-label">${capitalize(group.tag)}</span>
                       <span class="sidebar-count">${group.paths.length}</span>
                     </button>

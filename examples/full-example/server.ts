@@ -11,6 +11,7 @@ import { registerInfoRoutes } from "./lib/info";
 import { registerV1Routes } from "./lib/v1";
 import { registerSlowRoutes } from "./lib/slow";
 import { createAdminRouter } from "./lib/admin";
+import { registerAIRoutes } from "./lib/ai";
 
 const router = new Router();
 
@@ -28,6 +29,7 @@ registerWebSocket(router);
 registerInfoRoutes(router);
 registerV1Routes(router);
 registerSlowRoutes(router);
+registerAIRoutes(router);
 
 // Sub-router mounting
 router.mount("/api/admin", createAdminRouter());

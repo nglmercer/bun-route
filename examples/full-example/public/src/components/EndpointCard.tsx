@@ -3,6 +3,7 @@ import { useState } from "preact/hooks";
 import { html } from "htm/preact";
 import type { OpenApiOperation, OpenApiParameter } from "../api/spec";
 import { TryIt } from "./TryIt";
+import { askAI, generateDocs } from "../api/ai";
 
 interface EndpointCardProps {
   path: string;
@@ -56,6 +57,14 @@ function ParametersTable({ params }: { params: OpenApiParameter[] }) {
 export function EndpointCard({ path, method, safeId, operation }: EndpointCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [aiModal, setAiModal] = useState<{ open: boolean; type: "ask" | "docs" | null; loading: boolean; content: string; error: string | null }>({
+    open: false,
+    type: null,
+    loading: false,
+    content: "",
+    error: null,
+  });
+  const [askQuestion, setAskQuestion] = useState("");
 
   const handleCopy = async () => {
     const sampleBody =
@@ -66,6 +75,46 @@ export function EndpointCard({ path, method, safeId, operation }: EndpointCardPr
     await navigator.clipboard.writeText(curl);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  };
+
+  const openAiModal = (type: "ask" | "docs") => {
+    setAiModal({ open: true, type, loading: false, content: "", error: null });
+    setAskQuestion("");
+  };
+
+  const closeAiModal = () => {
+    setAiModal({ open: false, type: null, loading: false, content: "", error: null });
+    setAskQuestion("");
+  };
+
+  const handleAskAI = async () => {
+    if (!askQuestion.trim()) return;
+    setAiModal((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const question = `${askQuestion}\n\nEndpoint: ${method.toUpperCase()} ${path}`;
+      const answer = await askAI(question);
+      setAiModal((prev) => ({ ...prev, loading: false, content: answer }));
+    } catch (err) {
+      setAiModal((prev) => ({
+        ...prev,
+        loading: false,
+        error: err instanceof Error ? err.message : "Failed to get AI response",
+      }));
+    }
+  };
+
+  const handleGenerateDocs = async () => {
+    setAiModal((prev) => ({ ...prev, loading: true, error: null }));
+    try {
+      const docs = await generateDocs(path, method);
+      setAiModal((prev) => ({ ...prev, loading: false, content: docs }));
+    } catch (err) {
+      setAiModal((prev) => ({
+        ...prev,
+        loading: false,
+        error: err instanceof Error ? err.message : "Failed to generate docs",
+      }));
+    }
   };
 
   return html`
@@ -79,6 +128,12 @@ export function EndpointCard({ path, method, safeId, operation }: EndpointCardPr
         <div class="endpoint-actions" onClick=${(e: Event) => e.stopPropagation()}>
           <button class="btn btn-copy" onClick=${handleCopy} title="Copy as cURL">
             ${copied ? "Copied!" : "cURL"}
+          </button>
+          <button class="btn btn-ai" onClick=${() => openAiModal("docs")} title="Generate Documentation">
+            Docs
+          </button>
+          <button class="btn btn-ai" onClick=${() => openAiModal("ask")} title="Ask AI about this endpoint">
+            Ask AI
           </button>
           <${ExpandArrow} expanded=${expanded} />
         </div>
@@ -97,6 +152,49 @@ export function EndpointCard({ path, method, safeId, operation }: EndpointCardPr
             : null}
         </div>
       </div>
+
+      ${aiModal.open
+        ? html`
+            <div class="ai-modal-overlay" onClick=${closeAiModal}>
+              <div class="ai-modal" onClick=${(e: Event) => e.stopPropagation()}>
+                <div class="ai-modal-header">
+                  <h3>${aiModal.type === "ask" ? "Ask AI" : "Endpoint Documentation"}</h3>
+                  <button class="ai-modal-close" onClick=${closeAiModal}>×</button>
+                </div>
+                <div class="ai-modal-body">
+                  ${aiModal.type === "ask" && !aiModal.content && !aiModal.loading
+                    ? html`
+                        <div class="ai-ask-form">
+                          <textarea
+                            placeholder="Ask a question about this endpoint..."
+                            rows=${3}
+                            value=${askQuestion}
+                            onInput=${(e: Event) => setAskQuestion((e.currentTarget as HTMLTextAreaElement).value)}
+                          />
+                          <button
+                            class="btn btn-ai-send"
+                            onClick=${handleAskAI}
+                            disabled=${!askQuestion.trim()}
+                          >
+                            Ask
+                          </button>
+                        </div>
+                      `
+                    : null}
+                  ${aiModal.loading
+                    ? html`<div class="ai-loading">Generating response...</div>`
+                    : null}
+                  ${aiModal.error
+                    ? html`<div class="ai-error">${aiModal.error}</div>`
+                    : null}
+                  ${aiModal.content
+                    ? html`<div class="ai-content"><pre>${aiModal.content}</pre></div>`
+                    : null}
+                </div>
+              </div>
+            </div>
+          `
+        : null}
     </div>
   `;
 }

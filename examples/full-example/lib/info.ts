@@ -1,6 +1,6 @@
 import { handlerName } from "../../../src/index"
 import type { Router } from "../../../src/index"
-import { users } from "./types"
+import { enrichOpenAPISpec } from "./ai"
 
 export function registerInfoRoutes(router: Router): void {
   router.get("/api/info", handlerName("getInfo", ({ res }) => {
@@ -18,32 +18,9 @@ export function registerInfoRoutes(router: Router): void {
     res.json(defs)
   }))
 
-  router.get("/api/openapi", handlerName("getOpenApi", ({ res }) => {
-    const defs = router.getRouteDefinitions()
-    const paths: Record<string, Record<string, unknown>> = {}
-    for (const def of defs) {
-      const swaggerPath = def.path.replace(/:(\w+)/g, "{$1}")
-      if (!paths[swaggerPath]) paths[swaggerPath] = {}
-      paths[swaggerPath][def.method.toLowerCase()] = {
-        summary: def.handlerName,
-        parameters: [
-          ...def.pathParams.map(p => ({
-            name: p.name,
-            in: "path" as const,
-            required: true,
-            schema: { type: "string" },
-          })),
-          ...(def.queryParams || []).map(p => ({
-            name: p.name,
-            in: "query" as const,
-            required: p.required,
-            description: p.description,
-            schema: { type: p.type, default: p.default, enum: p.enum },
-          })),
-        ],
-      }
-    }
-    res.json({ openapi: "3.0.0", info: { title: "router-bun API", version: "1.0.0" }, paths })
+  router.get("/api/openapi", handlerName("getOpenApi", async ({ res }) => {
+    const spec = await enrichOpenAPISpec(router)
+    res.json(spec)
   }))
 
   router.get("/api/routes", handlerName("listRoutes", ({ res }) => {

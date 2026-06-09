@@ -5,6 +5,7 @@ import { fetchSpec, groupEndpoints } from "./api/spec";
 import type { OpenApiSpec } from "./api/spec";
 import { Sidebar } from "./components/Sidebar";
 import { EndpointCard } from "./components/EndpointCard";
+import { I18nProvider, useI18n } from "./i18n/context";
 
 type Theme = "dark" | "light";
 const ALL_METHODS = ["get", "post", "put", "patch", "delete", "options", "head"] as const;
@@ -15,14 +16,15 @@ function getStoredTheme(): Theme {
 }
 
 function ThemeToggle() {
+  const { t } = useI18n();
   const [theme, setTheme] = useState<Theme>(getStoredTheme());
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("theme", theme);
   }, [theme]);
   return html`
-    <button class="theme-toggle" onClick=${() => setTheme((t) => (t === "dark" ? "light" : "dark"))} aria-label="Toggle theme">
-      ${theme === "dark" ? "Light" : "Dark"}
+    <button class="theme-toggle" onClick=${() => setTheme((t) => (t === "dark" ? "light" : "dark"))} aria-label=${t.theme.toggle}>
+      ${theme === "dark" ? t.theme.dark : t.theme.light}
     </button>
   `;
 }
@@ -48,13 +50,14 @@ function MethodFilterBar({
   onToggle: (m: string) => void;
   counts: Record<string, number>;
 }) {
+  const { t } = useI18n();
   return html`
     <div class="method-filter-bar">
       <button
         class=${`method-filter-chip ${activeMethods.size === 0 ? "active" : ""}`}
         onClick=${() => onToggle("all")}
       >
-        All
+        ${t.filter.all}
       </button>
       ${ALL_METHODS.map(
         (m) => html`
@@ -72,15 +75,17 @@ function MethodFilterBar({
 }
 
 function Loading() {
-  return html`<div class="loading-indicator"><div class="spinner" /> Loading API specification...</div>`;
+  const { t } = useI18n();
+  return html`<div class="loading-indicator"><div class="spinner" /> ${t.loading}</div>`;
 }
 
 function ErrorState({ message }: { message: string }) {
+  const { t } = useI18n();
   return html`
     <div class="error-container">
-      <h2>Failed to load API spec</h2>
+      <h2>${t.error.title}</h2>
       <p>${message}</p>
-      <button class="btn btn-expand" onClick=${() => location.reload()} style="margin-top:1rem">Retry</button>
+      <button class="btn btn-expand" onClick=${() => location.reload()} style="margin-top:1rem">${t.error.retry}</button>
     </div>
   `;
 }
@@ -89,7 +94,7 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1).replace(/-/g, " ");
 }
 
-export function App() {
+function AppContent() {
   const [spec, setSpec] = useState<OpenApiSpec | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -97,6 +102,7 @@ export function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeMethods, setActiveMethods] = useState<Set<string>>(new Set());
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const { t } = useI18n();
 
   useEffect(() => {
     fetchSpec()
@@ -247,7 +253,7 @@ export function App() {
             : !spec
               ? html`<${Loading} />`
               : groups.length === 0
-                ? html`<div class="loading-indicator">${search || activeMethods.size > 0 ? "No endpoints match the current filters" : "No endpoints found"}</div>`
+                ? html`<div class="loading-indicator">${search || activeMethods.size > 0 ? t.common.noEndpointsFiltered : t.common.noEndpoints}</div>`
                 : groups.map(
                     (group) => html`
                       <div class="endpoint-section" key=${group.tag}>
@@ -269,5 +275,13 @@ export function App() {
         </div>
       </main>
     </div>
+  `;
+}
+
+export function App() {
+  return html`
+    <${I18nProvider}>
+      <${AppContent} />
+    </${I18nProvider}>
   `;
 }

@@ -4,6 +4,7 @@ import { html } from "htm/preact";
 import type { OpenApiParameter } from "../api/spec";
 import { executeRequest } from "./ResponseViewer";
 import { ResponseViewer } from "./ResponseViewer";
+import { generateBody } from "../api/ai";
 
 interface TryItProps {
   path: string;
@@ -45,11 +46,26 @@ export function TryIt({ path, method, params }: TryItProps) {
   const [error, setError] = useState<string | null>(null);
   const [requestKey, setRequestKey] = useState(0);
   const [sending, setSending] = useState(false);
+  const [generatingBody, setGeneratingBody] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const updatePath = (name: string, value: string) =>
     setPathValues((prev) => ({ ...prev, [name]: value }));
   const updateQuery = (name: string, value: string) =>
     setQueryValues((prev) => ({ ...prev, [name]: value }));
+
+  const handleGenerateBody = async () => {
+    setGeneratingBody(true);
+    setAiError(null);
+    try {
+      const generated = await generateBody(path, method, params);
+      setBody(generated);
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : "Failed to generate body");
+    } finally {
+      setGeneratingBody(false);
+    }
+  };
 
   const buildUrl = (): string => {
     let url = path;
@@ -166,7 +182,19 @@ export function TryIt({ path, method, params }: TryItProps) {
         ${hasBody(method)
           ? html`
               <div class="tryit-section">
-                <h4>Request Body</h4>
+                <div class="tryit-section-header">
+                  <h4>Request Body</h4>
+                  <button
+                    class="btn btn-ai-generate"
+                    onClick=${handleGenerateBody}
+                    disabled=${generatingBody}
+                  >
+                    ${generatingBody ? "Generating..." : "Generate Body"}
+                  </button>
+                </div>
+                ${aiError
+                  ? html`<div class="ai-error">${aiError}</div>`
+                  : null}
                 <div class="tryit-body-editor">
                   <textarea
                     placeholder='{"key": "value"}'
