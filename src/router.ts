@@ -170,9 +170,18 @@ export class Router<T extends RouteCollection = []> {
    *   // def.pathParams → [{ name: "id", type: "named", position: 1 }]
    * }
    * ```
+   *
+   * With source code (for AI/docs):
+   * ```ts
+   * const defs = router.getRouteDefinitions(undefined, { source: true })
+   * // def.source → "async ({ res }) => { ... }"
+   * ```
    */
-  getRouteDefinitions(): RouteDefinition[] {
-    return getDefs(this.routes, this.routeMeta);
+  getRouteDefinitions(
+    queryParamMeta?: Map<string, { queryParams?: QueryParamInfo[] }>,
+    options?: { source?: boolean },
+  ): RouteDefinition[] {
+    return getDefs(this.routes, queryParamMeta ?? this.routeMeta, options);
   }
 
   /**

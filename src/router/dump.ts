@@ -70,6 +70,8 @@ export interface RouteDefinition {
     isMerged: boolean
     stats?: RouteStats
     queryParams?: QueryParamInfo[]
+    /** Auto-captured source code of the handler */
+    source?: string
 }
 
 export interface DumpOptions {
@@ -114,12 +116,21 @@ export function resolveHandlerName(handler: RequestMiddleware): string {
     return "[anonym]"
 }
 
+export interface GetRouteDefinitionsOptions {
+    /** Include query param metadata */
+    queryParams?: boolean
+    /** Include handler source code (slower, for AI/docs use) */
+    source?: boolean
+}
+
 export function getRouteDefinitions(
     routes: EndpointRoute[],
-    routeMeta?: Map<string, { queryParams?: QueryParamInfo[] }>,
+    queryParamMeta?: Map<string, { queryParams?: QueryParamInfo[] }>,
+    options?: GetRouteDefinitionsOptions,
 ): RouteDefinition[] {
     const seen = new Set<string>()
     const definitions: RouteDefinition[] = []
+    const includeSource = options?.source ?? false
 
     for (const route of routes) {
         const method = stringifyHttpMethods(route.method)
@@ -143,7 +154,7 @@ export function getRouteDefinitions(
         const statsKey = `${method}:${path}`
         const stats = routeStats.get(statsKey)
 
-        const meta = routeMeta?.get(path)
+        const meta = queryParamMeta?.get(path)
 
         const def: RouteDefinition & { toJSON?(): Record<string, unknown> } = {
             method,
@@ -156,6 +167,7 @@ export function getRouteDefinitions(
             isMerged,
             stats: stats ? { ...stats } : undefined,
             queryParams: meta?.queryParams,
+            source: includeSource ? route.source : undefined,
         }
 
         def.toJSON = function (this: RouteDefinition) {

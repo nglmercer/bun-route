@@ -59,6 +59,8 @@ export interface EndpointRoute {
   method: HttpMethod;
   splitPath: SplitPath;
   middlewareName?: string;
+  /** Auto-captured source code of the handler function */
+  source?: string;
 }
 
 export interface CookieOptions {

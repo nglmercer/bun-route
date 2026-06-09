@@ -32,7 +32,8 @@ export function use(
     const route: EndpointRoute = {
         splitPath: splitRoutePath(path),
         method: parseHttpMethods(method),
-        handler: handler
+        handler: handler,
+        source: handler.toString(),
     }
 
     if (mergeHandlers) {
