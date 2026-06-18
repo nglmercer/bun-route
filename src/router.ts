@@ -261,22 +261,16 @@ export class Router<T extends RouteCollection = []> {
    */
   handle: BunRequestHandler = (request, server) => {
     try {
-      const result = innerHandle(this.routes, request, server);
+      const result = innerHandle(
+        this.routes,
+        request,
+        server,
+        this.errorHandler
+          ? (err, ctx) => this.errorHandler!(err, ctx)
+          : undefined,
+      );
       if (result && result instanceof Promise) {
-        return (result as Promise<Response>).catch((err: Error) => {
-          if (this.errorHandler) {
-            const res = new ResponseBuilder();
-            const ctx = { req: request, res } as Context;
-            const p = this.errorHandler(err, ctx);
-            if (p && p instanceof Promise) {
-              return (p as Promise<void>).then(() => res.build());
-            }
-            return res.build();
-          }
-          return new Response("Internal Server Error", {
-            status: HTTP_STATUS.INTERNAL_SERVER_ERROR,
-          });
-        });
+        return result as Promise<Response>;
       }
       return result as Response;
     } catch (err) {

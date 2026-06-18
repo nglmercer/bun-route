@@ -8,16 +8,23 @@ import type {
   EndpointRoute,
   WebSocketData,
   Context,
+  Request as EnhancedRequest,
 } from "../types";
 import { BunRequest } from "../request";
 import { HttpMethod } from "../method";
 import { Param } from "./param";
 import { Context as ContextImpl } from "../context";
 
+export type InnerErrorHandler = (
+  err: Error,
+  ctx: Context,
+) => Awaitable<void>;
+
 export function innerHandle(
   routes: EndpointRoute[],
   request: BunRequest,
   server: Server<WebSocketData>,
+  errorHandler?: InnerErrorHandler,
 ): Awaitable<Response> {
   const res = new ResponseBuilder();
   const req = request as import("../types").Request;
@@ -135,8 +142,20 @@ export function innerHandle(
         }
         return res.build();
       })
-      .catch((err) => {
+      .catch(async (err: Error) => {
         console.error("Promise rejected:", err);
+        if (errorHandler) {
+          const errRes = new ResponseBuilder();
+          const errCtx = new ContextImpl(
+            req as EnhancedRequest,
+            errRes,
+          );
+          const result = errorHandler(err, errCtx);
+          if (result && (result as Promise<void>).then != undefined) {
+            await result;
+          }
+          return errRes.build();
+        }
         return new Response("Internal Server Error", { status: 500 });
       });
   }
